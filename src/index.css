@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink-950: #05171d;
+  --color-ink-900: #08252e;
+  --color-ink-800: #0d3541;
+  --color-ink-700: #17505f;
+  --color-ink-500: #3d7284;
+  --color-ink-300: #8fb0bb;
+  --color-ink-100: #dce9ed;
+
+  --color-lagoon-700: #0b7a76;
+  --color-lagoon-600: #0e9490;
+  --color-lagoon-500: #12a5a0;
+  --color-lagoon-400: #2fc4bd;
+  --color-lagoon-300: #7fded8;
+  --color-lagoon-100: #d6f5f2;
+
+  --color-sand-50: #faf7f0;
+  --color-sand-100: #f5f0e4;
+  --color-sand-200: #ece4d1;
+  --color-sand-300: #ded2b6;
+  --color-sand-500: #b9a578;
+
+  --color-coral-600: #d8542f;
+  --color-coral-500: #f26b4e;
+  --color-coral-400: #f78a70;
+
+  --color-gold-500: #d9a441;
+  --color-gold-300: #eec882;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-sand-50);
+  color: var(--color-ink-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+}
+
+input, select, textarea, button {
+  font-family: inherit;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-rise {
+  animation: rise 0.5s ease both;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-sand-200) 25%, var(--color-sand-100) 50%, var(--color-sand-200) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}

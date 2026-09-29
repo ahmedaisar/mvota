@@ -1,0 +1,216 @@
+[
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/",
+    "type": "document",
+    "status": 429
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/css/app-shared.45af5b640aceecc4.css",
+    "type": "stylesheet",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/css/root-challenge.5ffeb845ba82ec44.css",
+    "type": "stylesheet",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/_dms/header/logo.svg?locale=en_US&siteid=300000001",
+    "type": "image",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/bernie.70ef8b2a218f631e.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/core.cf4cb4777f840b05.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/shared-ui-core-lifecycle-manager.ad75b73af0e6303d.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/pap.7acd2c2a76792750.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/shared-ui.281091fb3205c104.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/vendor.efc1ca4ff9582431.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/app-shared.78ed6b895b6460d2.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/app.141c79ddce69884e.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/egds.836103d6e395b5eb.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/root-challenge.9a0af3e1de2ea60b.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/l10n-bundle-en_US-js.3542cd015edbcbe8.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/N0dy/oHtJ/G/dwe/SAMneg/1a7bmGbtc32DNpOQaQ/CBpnMBcC/B0B2/fEM5Kgo",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/cgp/simple/challenge.initial.styles",
+    "type": "stylesheet",
+    "status": 204
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/cgp/simple/challenge.dynamic.styles",
+    "type": "stylesheet",
+    "status": 204
+  },
+  {
+    "phase": "home",
+    "method": "POST",
+    "url": "https://www.hotels.com/N0dy/oHtJ/G/dwe/SAMneg/1a7bmGbtc32DNpOQaQ/CBpnMBcC/B0B2/fEM5Kgo",
+    "type": "xhr",
+    "status": 201
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://c.travel-assets.com/captcha-pwa/brand-104111116101108115.132019280b68e542.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/cl/1x1.gif?gcoAgent=false&live=true&pageName=unknown&guid=a1c4b95e-ec2e-4781-9330-2eae5054d790&logTime=2026-09-29T20:20:19.025Z&sessionDuration=0&action=logTrxEvent&navTiming_elapsedTime=NaN&unloadTime=NaN&redirectTime=NaN&dnsTime=47&connectionTime=121&requestTime=233&responseTime=3&parsingTime=732&domReadyCallbackTime=0&onLdCallbackTime=NaN&processingTime=NaN&navigationToResponse=403&navigationToDomContentLoaded=1461&navigationToOnLd=NaN&fetchToResponse=402&fetchToDomContentLoaded=1460&fetchToOnLd=NaN&responseToDomContentLoaded=1058&responseToOnLd=NaN&navigationToDomInteractive=1146",
+    "type": "image",
+    "status": 302
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/dd/tags.js",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/cgp/simple/challenge.hydrated.styles",
+    "type": "stylesheet",
+    "status": 204
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "blob:https://www.hotels.com/c79af4f5-9856-4f82-a3a4-a6ce138db90b",
+    "type": "script",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/cl/1x1.gif?gcoAgent=false&live=true&pageName=unknown&guid=a1c4b95e-ec2e-4781-9330-2eae5054d790&logTime=2026-09-29T20%3A20%3A19.025Z&sessionDuration=0&action=logTrxEvent&navTiming_elapsedTime=NaN&unloadTime=NaN&redirectTime=NaN&dnsTime=47&connectionTime=121&requestTime=233&responseTime=3&parsingTime=732&domReadyCallbackTime=0&onLdCallbackTime=NaN&processingTime=NaN&navigationToResponse=403&navigationToDomContentLoaded=1461&navigationToOnLd=NaN&fetchToResponse=402&fetchToDomContentLoaded=1460&fetchToOnLd=NaN&responseToDomContentLoaded=1058&responseToOnLd=NaN&navigationToDomInteractive=1146&locale=en_IE&siteid=300000025",
+    "type": "image",
+    "status": 202
+  },
+  {
+    "phase": "home",
+    "method": "POST",
+    "url": "https://www.hotels.com/dd/js/",
+    "type": "xhr",
+    "status": 200
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/botOrNot/initial-validate",
+    "type": "fetch",
+    "status": 302
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "blob:https://www.hotels.com/7660299f-aab3-40e4-b1b5-a6d8f92fbf92",
+    "type": "script"
+  },
+  {
+    "phase": "home",
+    "method": "POST",
+    "url": "https://www.hotels.com/N0dy/oHtJ/G/dwe/SAMneg/1a7bmGbtc32DNpOQaQ/CBpnMBcC/B0B2/fEM5Kgo",
+    "type": "xhr"
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://www.hotels.com/botOrNot/initial-validate?locale=en_IE&siteid=300000025",
+    "type": "fetch",
+    "status": 403
+  },
+  {
+    "phase": "home",
+    "method": "GET",
+    "url": "https://geo.captcha-delivery.com/captcha/?initialCid=AHrlqAAAAAMAr3ILxhNUlJsA0dTYNA==&hash=25A126AC7E11851BDDB70454B34A05&t=fe&s=52762&referer=https%3A%2F%2Fwww.hotels.com%2F&e=e97b1a22f2d644c58d754881a328a69ca609b5d9495441928276c72677cf27a6f58e9db36bc58c1bd1da9e4fa48e6841&cid=PWlpvLVKc76RRolimoS_dLjqHKtAN8Vnro9a6mKq3Q6k5L9BOn759fZGi2fQ83TPX29evJYSpm7VlBBp_tQ5lULJiAAQYqp2ETuriyYZKQT5SfODiNZE7skpGT63QBn_&lang=en-US&dm=jd",
+    "type": "document"
+  }
+]

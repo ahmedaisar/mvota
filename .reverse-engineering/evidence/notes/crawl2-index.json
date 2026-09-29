@@ -1,0 +1,32 @@
+[
+  {
+    "id": "EVID-202",
+    "status": 200,
+    "title": "",
+    "finalUrl": "https://web.archive.org/web/20240821142115/https://www.hotels.com/Hotel-Search?selected=15215826&startDate=2024-08-21&endDate=2024-08-22&mdpcid=HCOM-US.META.HPA.HOTEL-CORESEARCH-desktop.HOTEL&MDPDTL=HTL.15215826.20240821.20240822.DDT.0.CID.20674778861.AUDID.&adults=2&children=&mctc=10&mpf=159.47&mpg=USD&mpl=USD&mpj=13.17&rffrid=sem.hcom.US.156.003.mapresults.02.desktop-1.kwrd%3DGGMETA.15215826USen-20240821-D-ABW%3D0-camp%3D20674778861-aud%3D-N&rateplanid=207811683&mpm=24&mpn=201537653&mpo=HC&mpp=1&locale=en_US&siteid=300000001&sort=RECOMMENDED&useRewards=false&semdtl=&userIntent=&theme=&destination=Gallagher%27s%20Travels%20Bar%20Harbor%20Motel%20%26%20Cabins&regionId=561"
+  },
+  {
+    "id": "EVID-205",
+    "status": 200,
+    "title": "Member-Only Hotel Deals | 2025 Hotel Offers on Hotels.com",
+    "finalUrl": "https://web.archive.org/web/20250731054515/https://www.hotels.com/lp/b/deals"
+  },
+  {
+    "id": "EVID-206",
+    "status": 200,
+    "title": "",
+    "finalUrl": "https://web.archive.org/web/20250731054225/https://www.hotels.com/trips"
+  },
+  {
+    "id": "EVID-207",
+    "status": 503,
+    "title": "Site temporarily unavailable",
+    "finalUrl": "https://web.archive.org/web/20250829232114/https://www.hotels.com/one-key-cards"
+  },
+  {
+    "id": "EVID-208",
+    "status": 200,
+    "title": "Vacation rentals: Condos, Apartments, Cabins & more - Hotels.com",
+    "finalUrl": "https://web.archive.org/web/20250731054517/https://www.hotels.com/lp/b/vacation-rentals"
+  }
+]

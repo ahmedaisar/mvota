@@ -1,0 +1,352 @@
+{
+  "product": {
+    "name": "Hotels.com",
+    "id": "hotels-com",
+    "operator": "Expedia Group",
+    "category": "Consumer Online Travel Agency (OTA)",
+    "purpose": "Search, compare, and book lodging and ancillary travel products with cross-brand loyalty rewards.",
+    "target_users": ["leisure travelers", "budget-conscious planners", "loyalty members", "business travelers"],
+    "value_proposition": "Deals + member-only pricing + one rewards program across Expedia/Hotels.com/Vrbo + booking flexibility (free cancellation, pay later).",
+    "platforms": ["desktop web", "mobile web/PWA", "iOS app", "Android app"],
+    "regions": "Global inventory; US-site default (siteid 300000001, locale en_US)",
+    "confidence": "high"
+  },
+  "scope": {
+    "mode": "RESEARCH_AND_IMPLEMENT",
+    "research_status": "complete_with_documented_gaps",
+    "reconstruction_objective": "Destination-restricted Maldives hotels/resorts booking OTA web app",
+    "access": "public_anonymous",
+    "live_target_status": "BLOCKED_HTTP_429_DATADOME_BOT_WALL",
+    "evidence_strategy": "Playwright renders of Wayback Machine snapshots + official documentation + third-party teardowns + client bundle forensics",
+    "limitations": [
+      "No live API payloads captured (bot wall)",
+      "Property detail and checkout pages not directly observed",
+      "No authenticated exploration (no credentials, none created)",
+      "No app binary analysis"
+    ]
+  },
+  "product_map": {
+    "home": { "route": "/", "children": ["hero_search", "promo_carousels", "category_chips", "property_carousel"], "evidence": ["EVID-002"] },
+    "search": { "route": "/Hotel-Search", "params": ["destination", "regionId", "latLong", "startDate", "endDate", "adults", "children", "rooms", "sort", "amenities", "mapBounds", "useRewards", "selected", "siteid", "locale", "theme", "userIntent"], "children": ["results_list", "filter_sidebar", "sort_menu", "map_view", "compare_tray", "save_actions"], "evidence": ["EVID-003"] },
+    "property_detail": { "route": "/Hotel-Review", "status": "PARTIALLY_EXPLORED", "inferred_children": ["gallery", "overview", "amenities", "reviews", "room_selection", "policies"], "evidence": ["EVID-013", "EVID-015", "EVID-018"] },
+    "checkout": { "status": "PARTIALLY_EXPLORED", "inferred_steps": ["room_rate", "traveler_details", "payment", "review", "book"], "evidence": ["EVID-015"] },
+    "account": { "login_route": "/login", "children": ["sign_in", "sign_up", "sso_google", "other_idps"], "evidence": ["EVID-009"] },
+    "trips": { "route": "/trips", "auth": "required", "evidence": ["EVID-007"] },
+    "deals": { "route": "/lp/b/deals", "evidence": ["EVID-006"] },
+    "rewards": { "route": "/welcome-one-key", "evidence": ["EVID-005"] },
+    "gift_cards": { "route": "/lp/b/giftcards", "evidence": ["EVID-010"] },
+    "vacation_rentals": { "route": "/lp/b/vacation-rentals", "evidence": ["EVID-008"] },
+    "editorial": { "route": "/lp/b/accommodation", "evidence": ["EVID-004"] },
+    "support": { "host": "service.hotels.com", "evidence": ["EVID-002"] },
+    "partner": { "host": "apps.expediapartnercentral.com", "status": "NOT_APPLICABLE", "evidence": ["EVID-002"] }
+  },
+  "personas": [
+    { "id": "persona-anonymous", "name": "Anonymous visitor", "access": "public", "capabilities": ["search", "filter", "sort", "compare", "view_policies", "start_checkout"], "gaps": ["member_prices", "save_trips", "rewards"], "evidence": ["EVID-002", "EVID-003", "EVID-007"], "confidence": "high" },
+    { "id": "persona-member-blue", "name": "Signed-in One Key member", "access": "session", "capabilities": ["all_anonymous", "member_prices_10pct", "onekeycash_earn", "save_trips", "booking_history", "price_tracking"], "evidence": ["EVID-005", "EVID-016"], "confidence": "high" },
+    { "id": "persona-tier-member", "name": "Silver/Gold/Platinum member", "access": "tier", "capabilities": ["deeper_member_discounts_15_20pct", "vip_access_perks", "bonus_onekeycash", "priority_support"], "qualification": "5/15/30 trip elements per year", "evidence": ["EVID-016"], "confidence": "high" },
+    { "id": "persona-guest-checkout", "name": "Guest checkout user", "access": "checkout_only", "capabilities": ["book_without_rewards"], "evidence": ["EVID-015"], "confidence": "medium" }
+  ],
+  "screens": [
+    { "id": "screen-home", "name": "Home", "route": "/", "purpose": "Search-first landing with merchandising", "components": ["search-strip", "promo-carousel", "category-chips", "property-carousel", "header-utility-bar"], "states": ["initial", "hydrated"], "actions": ["search", "sign_in", "navigate"], "permissions": [], "apis": ["graphql-experience"], "evidence": ["EVID-002"], "confidence": "high" },
+    { "id": "screen-search-results", "name": "Search Results", "route": "/Hotel-Search", "purpose": "Compare and refine lodging results", "components": ["lodging-card-responsive", "desktop-sidebar", "results-header", "sort-menu", "map-trigger", "compare-tray", "save-button"], "states": ["loading", "populated", "partially_hydrated", "empty"], "actions": ["filter", "sort", "compare", "save", "open_property"], "permissions": [], "apis": ["search", "autocomplete", "maps"], "evidence": ["EVID-003"], "confidence": "high" },
+    { "id": "screen-property-detail", "name": "Property Detail", "route": "/Hotel-Review", "purpose": "Inspect property and select room/rate", "components": ["gallery", "amenity-list", "review-summary", "room-rows", "policy-column", "sticky-book-cta"], "states": ["loading", "populated", "sold_out"], "actions": ["select_room", "select_rate", "save"], "permissions": [], "apis": ["property", "quote"], "evidence": ["EVID-013", "EVID-015", "EVID-018"], "confidence": "medium" },
+    { "id": "screen-checkout", "name": "Checkout", "route": "/checkout (inferred)", "purpose": "Collect traveler + payment and confirm booking", "components": ["traveler-form", "payment-form", "price-breakdown", "terms-acceptance", "rate-plan-modal"], "states": ["form_invalid", "processing", "error", "success"], "actions": ["submit", "pay_now_or_later"], "permissions": ["optionally_signed_in"], "apis": ["booking"], "evidence": ["EVID-015"], "confidence": "medium" },
+    { "id": "screen-confirmation", "name": "Confirmation", "route": "/confirmation (inferred)", "purpose": "Booking confirmation with rewards pending", "components": ["confirmation-code", "itinerary-summary", "rewards-pending"], "states": ["success"], "actions": ["view_trips"], "permissions": [], "apis": ["booking"], "evidence": ["EVID-015"], "confidence": "medium" },
+    { "id": "screen-login", "name": "Sign in / Create account", "route": "/login", "purpose": "One Identity authentication", "components": ["email-field", "submit", "google-sso", "other-idps", "terms-links"], "states": ["initial", "submitted", "error"], "actions": ["sign_in", "sign_up"], "permissions": [], "apis": ["identity"], "evidence": ["EVID-009"], "confidence": "high" },
+    { "id": "screen-trips", "name": "Trips", "route": "/trips", "purpose": "Saved trips and itineraries", "components": ["trips-list", "sign-in-cta", "top-destinations"], "states": ["signed_out_empty", "populated"], "actions": ["sign_in", "create_trip"], "permissions": ["authenticated"], "apis": ["trips"], "evidence": ["EVID-007"], "confidence": "high" },
+    { "id": "screen-deals", "name": "Deals Hub", "route": "/lp/b/deals", "purpose": "Member-only offers + FAQ", "components": ["sticky-search", "offer-carousels", "faq-accordion"], "states": ["populated", "carousels_loading"], "actions": ["search", "open_offer"], "permissions": [], "apis": ["offers"], "evidence": ["EVID-006"], "confidence": "high" },
+    { "id": "screen-one-key", "name": "One Key Rewards", "route": "/welcome-one-key", "purpose": "Explain earn/tiers/redeem", "components": ["benefit-cards", "tier-explainer", "faq"], "states": ["populated"], "actions": ["sign_in", "learn_more"], "permissions": [], "apis": [], "evidence": ["EVID-005"], "confidence": "high" },
+    { "id": "screen-error", "name": "Service Error", "route": "any", "purpose": "Temporarily unavailable notice", "components": ["error-message"], "states": ["503"], "actions": ["retry"], "permissions": [], "apis": [], "evidence": ["EVID-011"], "confidence": "high" }
+  ],
+  "components": [
+    { "id": "cmp-search-strip", "name": "Search form (EGDS)", "slots": ["search-location", "EGDSSearchFormLocationField-Location|RegionId|AirportCode|Lat|Long|DestinationId", "EGDSDateRangePicker-StartDate|EndDate", "rooms-traveler-selector-menu-container", "EGDSSearchFormTravelersField-Adult-1"], "evidence": ["EVID-003"], "confidence": "high" },
+    { "id": "cmp-lodging-card", "name": "Lodging card", "slots": ["photo", "name", "location", "rating", "amenities", "price_block", "policy_labels", "outlined-save-button", "open-hotel-information"], "evidence": ["EVID-003"], "confidence": "high" },
+    { "id": "cmp-filter-sidebar", "name": "Filter sidebar", "fieldsets": ["popularFilter", "highly_rated_for_group", "amenities", "paymentType", "propertyCancellation", "lodging", "accessibility", "travelerType", "mealPlan", "rewards"], "evidence": ["EVID-003"], "confidence": "high" },
+    { "id": "cmp-sort-menu", "name": "Sort & Filter", "options": ["Recommended", "Price: low to high", "Price: high to low", "Rating", "Distance"], "disclosure": "How our sort order works", "evidence": ["EVID-003", "EVID-015"], "confidence": "high" },
+    { "id": "cmp-compare", "name": "Compare properties", "max_items": 5, "module": "shared-ui-retail-lodging-compare", "evidence": ["EVID-003", "EVID-020", "EVID-013"], "confidence": "high" },
+    { "id": "cmp-price-breakdown", "name": "Fee-inclusive pricing coachmark", "module": "shared-ui-retail-lodging-fee-inclusive-pricing-coachmark", "evidence": ["EVID-013"], "confidence": "high" },
+    { "id": "cmp-carousel", "name": "Carousel (promo/category)", "slots": ["carousel-wrapper", "carousel-container", "carousel-item", "carousel-nav-prev|next"], "evidence": ["EVID-002", "EVID-006"], "confidence": "high" },
+    { "id": "cmp-voice-of-customer", "name": "Feedback widget", "module": "shared-ui-voice-of-the-customer", "provider": "directword.io", "evidence": ["EVID-003", "EVID-002"], "confidence": "high" }
+  ],
+  "workflows": [
+    {
+      "id": "workflow-search",
+      "name": "Search and refine",
+      "actor": "visitor",
+      "preconditions": ["dates selected", "destination resolved"],
+      "steps": ["enter destination", "autocomplete resolves regionId/lat-long", "pick dates", "set travelers/rooms", "submit", "apply filters", "sort", "optionally map/compare/save"],
+      "state_transitions": [{ "trigger": "submit", "state_before": "form", "state_after": "results" }],
+      "apis": ["search", "autocomplete"],
+      "business_rules": ["adults>=1", "default sort=Recommended", "filters AND-combined", "compare max 5"],
+      "side_effects": ["URL encodes full search contract", "history entry"],
+      "failure_cases": ["no results after over-filtering", "unresolved destination"],
+      "evidence": ["EVID-003"],
+      "confidence": "high"
+    },
+    {
+      "id": "workflow-book",
+      "name": "Book a stay",
+      "actor": "visitor|member",
+      "preconditions": ["results or property page reached"],
+      "steps": ["open property", "scroll to rooms", "choose room", "choose rate plan (pay now/pay later)", "traveler details", "payment", "accept terms", "Book", "confirmation"],
+      "state_transitions": [
+        { "trigger": "select_rate", "state_before": "property", "state_after": "checkout" },
+        { "trigger": "submit_payment", "state_before": "pending_payment", "state_after": "confirmed" }
+      ],
+      "apis": ["booking"],
+      "business_rules": ["member prices require prior sign-in", "rewards require sign-in before booking", "refundability bound to rate plan"],
+      "failure_cases": ["payment failure returns to form", "sold-out inventory at confirm"],
+      "evidence": ["EVID-015", "EVID-003", "EVID-016"],
+      "confidence": "medium"
+    },
+    {
+      "id": "workflow-sign-in",
+      "name": "Sign in / Join",
+      "actor": "visitor",
+      "preconditions": ["clicked sign-in (uurl captured)"],
+      "steps": ["enter email", "choose Google/other IdP or continue", "redirect back to rurl"],
+      "state_transitions": [{ "trigger": "authenticate", "state_before": "anonymous", "state_after": "member" }],
+      "apis": ["identity"],
+      "business_rules": ["one account spans Expedia/Hotels.com/Vrbo"],
+      "failure_cases": ["auth error shows form error state"],
+      "evidence": ["EVID-009"],
+      "confidence": "high"
+    },
+    {
+      "id": "workflow-save-trip",
+      "name": "Save to Trips",
+      "actor": "member",
+      "preconditions": ["signed in"],
+      "steps": ["tap save on card", "choose/create named trip", "item stored"],
+      "apis": ["trips"],
+      "business_rules": ["signed-out save prompts sign-in"],
+      "evidence": ["EVID-003", "EVID-007", "EVID-018"],
+      "confidence": "medium"
+    },
+    {
+      "id": "workflow-rewards",
+      "name": "Earn and redeem rewards",
+      "actor": "member",
+      "preconditions": ["signed in before eligible booking"],
+      "steps": ["book eligible stay", "OneKeyCash pending", "stay completes", "available balance", "apply at future checkout"],
+      "state_transitions": [{ "trigger": "stay_complete", "state_before": "pending", "state_after": "available" }],
+      "business_rules": ["earn on room+meal excluding taxes/fees", "tier multipliers on VIP Access", "legacy: 10 stamps -> reward night"],
+      "side_effects": ["trip elements advance tier"],
+      "evidence": ["EVID-016", "EVID-017", "EVID-005"],
+      "confidence": "high"
+    }
+  ],
+  "business_rules": [
+    { "id": "rule-ranking", "name": "Recommended sort", "trigger": "search", "preconditions": [], "logic": "proprietary multi-factor ranking (price, reviews, location, commercial placement)", "outcome": "default ordering with disclosure link", "side_effects": ["promoted placements"], "evidence": ["EVID-003", "EVID-015"], "confidence": "high", "open_questions": ["weights"] },
+    { "id": "rule-member-price", "name": "Member Price", "trigger": "price render for signed-in member", "preconditions": ["member session", "property/date eligible"], "logic": "strike-through standard rate vs discounted member rate (10%+; tier may increase)", "outcome": "lower displayed price", "side_effects": ["conversion prompt for anonymous"], "evidence": ["EVID-003", "EVID-005", "EVID-016"], "confidence": "high" },
+    { "id": "rule-onekeycash-earn", "name": "OneKeyCash earning", "trigger": "eligible booking completed", "preconditions": ["signed in before booking"], "logic": "percentage of spend excluding taxes/fees; tier rate; VIP Access multipliers", "outcome": "pending then available balance", "side_effects": ["not earned on cancelled/refunded"], "evidence": ["EVID-016"], "confidence": "high" },
+    { "id": "rule-trip-elements", "name": "Tier qualification", "trigger": "qualifying trip element >= $25", "preconditions": ["member"], "logic": "5 elements=Silver, 15=Gold, 30=Platinum per year", "outcome": "tier status + benefits", "side_effects": ["deeper discounts"], "evidence": ["EVID-016"], "confidence": "high" },
+    { "id": "rule-stamps-legacy", "name": "Hotels.com Rewards stamps (deprecated)", "trigger": "eligible night stayed", "preconditions": ["legacy member"], "logic": "10 stamps -> 1 reward night valued at average nightly rate excl. taxes", "outcome": "reward night", "side_effects": ["converted into OneKeyCash"], "evidence": ["EVID-017", "EVID-005"], "confidence": "high" },
+    { "id": "rule-rate-plan", "name": "Pay now vs pay later", "trigger": "room selection", "preconditions": ["rate plan availability"], "logic": "prepaid rates may be cheaper and unlock rewards redemption; pay-later pairs with free cancellation until deadline", "outcome": "selected payment policy", "side_effects": ["refundability set"], "evidence": ["EVID-003", "EVID-015", "EVID-016"], "confidence": "high" },
+    { "id": "rule-trips-gate", "name": "Trips require auth", "trigger": "anonymous visit to /trips", "preconditions": [], "logic": "redirect/render sign-in CTA with rurl preserved", "outcome": "signed-out empty state", "side_effects": ["auth funnel"], "evidence": ["EVID-007"], "confidence": "high" },
+    { "id": "rule-maldives-tax-stack", "name": "Maldives pricing stack (rebuild target)", "trigger": "quote", "preconditions": ["resort selected"], "logic": "total = (room+meal)*1.10 service charge *1.17 TGST + green tax ($6 or $12 ppn) + round-trip transfer per person", "outcome": "tax-inclusive quote", "side_effects": [], "evidence": ["EVID-021"], "confidence": "high" },
+    { "id": "rule-seaplane-window", "name": "Seaplane daylight constraint (rebuild target)", "trigger": "quote/booking for seaplane atoll", "preconditions": ["transfer type = seaplane"], "logic": "seaplanes operate 06:00-16:00; international arrivals after ~15:00 require overnight Malé stay", "outcome": "warning or booking block", "side_effects": ["arrival-time validation"], "evidence": ["EVID-021"], "confidence": "high" }
+  ],
+  "state_machines": [
+    { "id": "sm-booking", "name": "Booking lifecycle (rebuild)", "states": ["draft", "quote_issued", "pending_payment", "confirmed", "completed", "cancelled", "payment_failed"], "transitions": [ { "trigger": "select_rate", "from": "draft", "to": "quote_issued" }, { "trigger": "submit_payment", "from": "quote_issued", "to": "pending_payment" }, { "trigger": "payment_success", "from": "pending_payment", "to": "confirmed" }, { "trigger": "payment_failure", "from": "pending_payment", "to": "payment_failed" }, { "trigger": "cancel_request", "from": "confirmed", "to": "cancelled" }, { "trigger": "stay_end", "from": "confirmed", "to": "completed" }, { "trigger": "reward_post", "from": "completed", "to": "completed" } ], "evidence": ["EVID-015", "EVID-016"], "confidence": "medium" },
+    { "id": "sm-rewards", "name": "OneKeyCash posting", "states": ["not_earned", "pending", "available", "redeemed"], "transitions": [ { "trigger": "eligible_booking", "from": "not_earned", "to": "pending" }, { "trigger": "stay_completed", "from": "pending", "to": "available", "delay": "up to 3d pay-now / 35d pay-later" }, { "trigger": "redemption", "from": "available", "to": "redeemed" } ], "evidence": ["EVID-016"], "confidence": "high" },
+    { "id": "sm-session", "name": "Auth session", "states": ["anonymous", "authenticating", "member"], "transitions": [ { "trigger": "submit_login", "from": "anonymous", "to": "authenticating" }, { "trigger": "success", "from": "authenticating", "to": "member" }, { "trigger": "logout", "from": "member", "to": "anonymous" } ], "evidence": ["EVID-009"], "confidence": "medium" }
+  ],
+  "entities": [
+    { "id": "entity-user", "name": "User", "purpose": "Account identity across Expedia Group brands", "fields": ["id", "email", "name", "identity_provider", "created_at"], "relationships": ["has OneKeyAccount", "owns Trips", "has Bookings"], "lifecycle": ["registered", "active", "deletion_requested"], "constraints": ["one identity across brands"], "observed": "api-derived", "evidence": ["EVID-009", "EVID-005"], "confidence": "high" },
+    { "id": "entity-destination", "name": "Destination", "purpose": "Search target resolution", "fields": ["regionId", "destinationId", "name", "lat", "long", "airportCode", "type(city|region|property|airport)"], "relationships": ["has Properties"], "lifecycle": [], "constraints": ["search must resolve to id or lat/long"], "observed": "observed (form fields + URL)", "evidence": ["EVID-003"], "confidence": "high" },
+    { "id": "entity-property", "name": "Property (hotel/resort)", "purpose": "Bookable lodging unit", "fields": ["id", "name", "star_rating", "guest_rating", "review_count", "location", "media[]", "amenities[]", "meal_plans[]", "transfer_type (Maldives)", "policies"], "relationships": ["has Rooms", "has RatePlans", "belongs to Destination", "has Reviews"], "lifecycle": ["listed", "sold_out", "delisted"], "constraints": [], "observed": "api-derived", "evidence": ["EVID-003", "EVID-015"], "confidence": "high" },
+    { "id": "entity-room", "name": "Room / Villa", "purpose": "Physical room category", "fields": ["id", "name", "capacity", "bed_type", "size", "view"], "relationships": ["belongs to Property", "has RatePlans"], "lifecycle": [], "constraints": ["occupancy limits"], "observed": "inferred", "evidence": ["EVID-015"], "confidence": "medium" },
+    { "id": "entity-rate-plan", "name": "Rate Plan", "purpose": "Price + payment/cancellation terms for a room", "fields": ["id", "price", "currency", "payment_type(pay_now|pay_later)", "refundable", "cancellation_deadline", "member_price"], "relationships": ["belongs to Room"], "lifecycle": ["available", "expired"], "constraints": ["rewards redemption only on pay_now"], "observed": "api-derived", "evidence": ["EVID-003", "EVID-015", "EVID-016"], "confidence": "high" },
+    { "id": "entity-booking", "name": "Booking / Itinerary", "purpose": "Reservation record", "fields": ["id", "confirmation_code", "property_id", "rate_plan_id", "dates", "travelers", "price_breakdown", "status"], "relationships": ["belongs to User", "references Property/RatePlan"], "lifecycle": ["pending_payment", "confirmed", "cancelled", "completed"], "constraints": ["cancel windows from rate plan"], "observed": "inferred", "evidence": ["EVID-015"], "confidence": "medium" },
+    { "id": "entity-trip", "name": "Trip", "purpose": "Named container for saved properties/itineraries", "fields": ["id", "name", "items[]"], "relationships": ["owned by User"], "lifecycle": ["empty", "populated"], "constraints": ["auth required"], "observed": "observed (app teardown + /trips)", "evidence": ["EVID-007", "EVID-018"], "confidence": "high" },
+    { "id": "entity-onekey-cash", "name": "OneKeyAccount", "purpose": "Loyalty ledger and tier", "fields": ["tier(blue|silver|gold|platinum)", "pending_cash", "available_cash", "trip_elements", "stamps_legacy"], "relationships": ["belongs to User"], "lifecycle": ["none", "pending", "available", "redeemed"], "constraints": ["earn requires sign-in before booking", "no earn on taxes/fees"], "observed": "documented", "evidence": ["EVID-016", "EVID-017", "EVID-005"], "confidence": "high" },
+    { "id": "entity-meal-plan", "name": "Meal Plan (Maldives)", "purpose": "Board basis priced per person/night", "fields": ["code(BB|HB|FB|AI|PREMIUM_AI)", "uplift_ppn"], "relationships": ["offered by Property"], "observed": "domain research + hotels.com mealPlan filter", "evidence": ["EVID-003", "EVID-021"], "confidence": "high" },
+    { "id": "entity-transfer", "name": "Transfer (Maldives)", "purpose": "Mandatory airport-island transfer", "fields": ["type(speedboat|seaplane|domestic_flight)", "round_trip_per_person", "duration", "daylight_only"], "relationships": ["fixed by Property atoll"], "constraints": ["seaplane 06:00-16:00 only"], "observed": "domain research", "evidence": ["EVID-021"], "confidence": "high" },
+    { "id": "entity-offer", "name": "Offer/Deal", "purpose": "Promotional pricing", "fields": ["id", "title", "discount", "eligibility(member_only)"], "relationships": ["applies to Property/RatePlan"], "observed": "observed (deals hub)", "evidence": ["EVID-006"], "confidence": "medium" }
+  ],
+  "relationships": [
+    { "from": "entity-user", "to": "entity-trip", "type": "owns" },
+    { "from": "entity-user", "to": "entity-onekey-cash", "type": "has" },
+    { "from": "entity-user", "to": "entity-booking", "type": "owns" },
+    { "from": "entity-destination", "to": "entity-property", "type": "contains" },
+    { "from": "entity-property", "to": "entity-room", "type": "contains" },
+    { "from": "entity-room", "to": "entity-rate-plan", "type": "priced_by" },
+    { "from": "entity-property", "to": "entity-transfer", "type": "requires" },
+    { "from": "entity-property", "to": "entity-meal-plan", "type": "offers" },
+    { "from": "entity-booking", "to": "entity-rate-plan", "type": "reserves" },
+    { "from": "entity-offer", "to": "entity-rate-plan", "type": "discounts" }
+  ],
+  "apis": [
+    { "id": "api-graphql-experience", "method": "POST", "endpoint": "GraphQL gateway (path UNKNOWN)", "purpose": "Experience/page data for all screens", "triggering_action": "page load and interactions", "authentication": "anonymous or session", "observed_status_codes": [], "related_entity": ["property", "destination"], "related_screen": ["all"], "evidence": ["EVID-012", "EVID-013", "EVID-019"], "confidence": "high" },
+    { "id": "api-search", "method": "POST (GraphQL)", "endpoint": "lodging search query (UNKNOWN path)", "purpose": "Results, counts, prices, map pins", "request": { "destination": "string", "dates": "range", "occupancy": "rooms/adults/children", "filters": "amenities/star/rating/payment/cancellation/rewards", "sort": "enum", "bounds": "mapBounds" }, "triggered_by": ["search submit", "filter change", "sort change"], "evidence": ["EVID-003"], "confidence": "high" },
+    { "id": "api-autocomplete", "method": "GET/POST", "endpoint": "destination suggest (UNKNOWN)", "purpose": "Resolve text to region/airport/lat-long", "triggered_by": ["typing in location field"], "evidence": ["EVID-003"], "confidence": "medium" },
+    { "id": "api-media", "method": "GET", "endpoint": "https://images.trvl-media.com/lodging/{id}/{hash}.jpg?impolicy=resizecrop&rw=&ra=", "purpose": "Property imagery with transforms", "authentication": "none", "evidence": ["EVID-012"], "confidence": "high" },
+    { "id": "api-maps", "method": "GET", "endpoint": "https://maps.googleapis.com/maps/api/staticmap", "purpose": "Results map tiles", "evidence": ["EVID-012"], "confidence": "high" },
+    { "id": "api-error-beacon", "method": "GET", "endpoint": "https://www.hotels.com/cl/2x2.gif?action=logErrors", "purpose": "Client error telemetry", "evidence": ["EVID-012"], "confidence": "high" },
+    { "id": "api-identity", "method": "GET/POST", "endpoint": "/login?uurl=e3id=redr&rurl={return}", "purpose": "One Identity sign-in/sign-up", "triggered_by": ["header sign-in", "gated resource"], "evidence": ["EVID-009", "EVID-007"], "confidence": "high" },
+    { "id": "api-booking", "method": "UNKNOWN", "endpoint": "UNKNOWN", "purpose": "Create reservation", "triggered_by": ["checkout submit"], "authentication": "session", "evidence": ["EVID-015"], "confidence": "low" }
+  ],
+  "data_flows": [
+    { "id": "flow-search", "path": ["UI search strip", "GraphQL search query", "experience gateway", "search micro-service", "inventory/pricing", "response", "results list render"], "evidence": ["EVID-003", "EVID-013"], "confidence": "high" },
+    { "id": "flow-media", "path": ["render", "images.trvl-media.com with resize params", "CDN edge"], "evidence": ["EVID-012"], "confidence": "high" },
+    { "id": "flow-checkout", "path": ["room selection", "traveler form", "payment", "booking service", "supplier reservation", "confirmation", "rewards pending entry"], "evidence": ["EVID-015", "EVID-016"], "confidence": "medium" },
+    { "id": "flow-rewards", "path": ["eligible booking", "pending ledger", "stay completion", "available balance", "future redemption"], "evidence": ["EVID-016"], "confidence": "high" }
+  ],
+  "integrations": [
+    { "integration": "DataDome bot management", "purpose": "Edge bot filtering", "observed_evidence": "HTTP 429 'Bot or Not?' page; captcha-delivery.com assets", "data_exchanged": "client fingerprint/behavior", "trigger": "automated request patterns", "failure_implications": "site inaccessible to blocked clients", "confidence": "high" },
+    { "integration": "Google Maps", "purpose": "Static map on results", "observed_evidence": "maps.googleapis.com staticmap request", "data_exchanged": "coordinates, markers", "trigger": "map view", "failure_implications": "map unavailable", "confidence": "high" },
+    { "integration": "Expedia Group media CDN", "purpose": "Images + JS bundles", "observed_evidence": "images.trvl-media.com, c/z.travel-assets.com, assets.cdn-hotels.com", "data_exchanged": "static assets", "trigger": "page load", "failure_implications": "blank media/UI", "confidence": "high" },
+    { "integration": "Branch deep links", "purpose": "App install/attribution", "observed_evidence": "hotels.app.link links in header", "data_exchanged": "campaign params", "trigger": "Get the app", "failure_implications": "app acquisition path broken", "confidence": "high" },
+    { "integration": "Google sign-in (+ other IdPs)", "purpose": "Authentication", "observed_evidence": "'Sign in with Google', 'Other ways to sign in'", "data_exchanged": "identity tokens", "trigger": "login", "failure_implications": "login failure", "confidence": "high" },
+    { "integration": "Directword.io", "purpose": "Feedback survey", "observed_evidence": "feedback link in header", "data_exchanged": "survey responses", "trigger": "Share feedback", "failure_implications": "minor", "confidence": "high" },
+    { "integration": "Payment processors", "purpose": "Card/PayPal payments", "observed_evidence": "third-party docs (PayPal at checkout)", "data_exchanged": "payment credentials", "trigger": "checkout", "failure_implications": "booking failure", "confidence": "medium" },
+    { "integration": "Support portal (service.hotels.com)", "purpose": "Customer service + virtual agent", "observed_evidence": "header link + app teardown", "data_exchanged": "booking lookup data", "trigger": "support click", "failure_implications": "self-service unavailable", "confidence": "high" }
+  ],
+  "authentication": {
+    "methods": ["email_first", "google_sso", "additional_idps"],
+    "session": "cookie/token-based (mechanics unobserved)",
+    "identity_model": "One Identity shared across Expedia, Hotels.com, Vrbo",
+    "redirect_pattern": "/login?uurl=e3id=redr&rurl={return_url}",
+    "gates": ["trips", "member_prices", "rewards", "booking_history"],
+    "evidence": ["EVID-009", "EVID-007", "EVID-016"],
+    "confidence": "high"
+  },
+  "authorization": {
+    "model": "anonymous public read; authenticated member resources; loyalty tier affects pricing benefits",
+    "roles": ["anonymous", "member_blue", "silver", "gold", "platinum"],
+    "resource_ownership": ["trips", "bookings", "rewards ledgers"],
+    "tier_benefits": { "blue": "10% member prices", "silver": "15%", "gold": "20% + perks", "platinum": "20% + VIP support" },
+    "evidence": ["EVID-016", "EVID-007"],
+    "confidence": "high"
+  },
+  "monetization": {
+    "revenue_model": ["supplier_commissions (inferred)", "advertising/merchandising (inferred from promoted placements)", "gift_cards", "co_branded_cards"],
+    "membership": { "free": true, "paywall": false },
+    "discount_surfaces": ["Members save up to 20% carousel", "Member Prices filter 10%", "deals hub member-only offers"],
+    "rewards_currency": "OneKeyCash (1 unit = 1 currency unit), legacy stamps",
+    "upgrade_path": "tier progression via trip elements (5/15/30)",
+    "evidence": ["EVID-002", "EVID-003", "EVID-005", "EVID-006", "EVID-016", "EVID-018"],
+    "confidence": "high"
+  },
+  "architecture": {
+    "client": "React PWA composed of shared UI modules (families: lotus-home-ui, blossom-flex-ui / blossom-lodging-*, shopping-pwa) with GraphQL client bundles",
+    "edge": "CDN (travel-assets.com) + DataDome bot wall",
+    "api": "GraphQL experience layer / federation (SDKUI + shared components)",
+    "services": "micro-services behind gateway (search/pricing/identity/booking/rewards) — org-level evidence for JVM/Kotlin Spring Boot, gRPC, Kubernetes/Helm",
+    "persistence": "UNKNOWN",
+    "media": "images.trvl-media.com transform CDN",
+    "telemetry": "pixel beacon /cl/2x2.gif + analytics campaign params (mdpcid, rffrid)",
+    "evidence": ["EVID-001", "EVID-012", "EVID-013", "EVID-019"],
+    "confidence": {"client": "high", "api": "high", "services": "medium", "persistence": "unknown"}
+  },
+  "technology_stack": [
+    { "technology": "React + TypeScript", "role": "Web UI", "evidence": ["EVID-012", "EVID-019"], "confidence": "high" },
+    { "technology": "PWA / module federation shared-ui packages", "role": "Client architecture", "evidence": ["EVID-013"], "confidence": "high" },
+    { "technology": "GraphQL (experience layer)", "role": "API paradigm", "evidence": ["EVID-012", "EVID-019"], "confidence": "high" },
+    { "technology": "EGDS design tokens", "role": "Design system", "evidence": ["EVID-003", "EVID-019"], "confidence": "high" },
+    { "technology": "DataDome", "role": "Bot protection", "evidence": ["EVID-001"], "confidence": "high" },
+    { "technology": "Google Maps static", "role": "Maps", "evidence": ["EVID-012"], "confidence": "high" },
+    { "technology": "JVM/Kotlin Spring Boot, gRPC, Kubernetes/Helm", "role": "Backend platform (org-level)", "evidence": ["EVID-019"], "confidence": "medium" },
+    { "technology": "Wayback Machine", "role": "Research instrumentation", "evidence": ["EVID-002"], "confidence": "high" }
+  ],
+  "observations": [
+    { "id": "OBS-001", "statement": "Live site returns 429 DataDome challenge to HTTP clients and Chrome from this network", "evidence": ["EVID-001"], "confidence": "high" },
+    { "id": "OBS-002", "statement": "Search exposes 9 filter families including mealPlan, paymentType, rewards, travelerType", "evidence": ["EVID-003"], "confidence": "high" },
+    { "id": "OBS-003", "statement": "Header/search uses EGDS field components with region/airport/lat-long resolution", "evidence": ["EVID-003"], "confidence": "high" },
+    { "id": "OBS-004", "statement": "Trips is auth-gated with signed-out empty state and rurl-preserving sign-in", "evidence": ["EVID-007"], "confidence": "high" },
+    { "id": "OBS-005", "statement": "Client loads graphql.js plus shared-ui lodging modules from travel-assets CDN", "evidence": ["EVID-012", "EVID-013"], "confidence": "high" },
+    { "id": "OBS-006", "statement": "One Key replaces legacy stamps with OneKeyCash and trip-element tiers", "evidence": ["EVID-005", "EVID-016", "EVID-017"], "confidence": "high" },
+    { "id": "OBS-007", "statement": "Maldives packages require meal plan + transfer + 28.7% tax stack + green tax", "evidence": ["EVID-021"], "confidence": "high" }
+  ],
+  "inferences": [
+    { "id": "INF-001", "statement": "Booking checkout follows property->rooms->rate choice->prepay/pay-later modal->traveler->payment->confirm", "basis": ["EVID-015", "EVID-003 paymentType filter"], "confidence": "medium" },
+    { "id": "INF-002", "statement": "Backend micro-services are JVM/Kotlin-based Spring Boot deployed on Kubernetes for the brand platform", "basis": ["EVID-019"], "confidence": "medium" },
+    { "id": "INF-003", "statement": "Revenue is primarily supplier commission plus merchandising", "basis": ["marketplace structure", "promoted placements"], "confidence": "medium" },
+    { "id": "INF-004", "statement": "Property detail page composes shared-ui-lodging-property-details, reviews, and fee-inclusive pricing modules", "basis": ["EVID-013"], "confidence": "high" }
+  ],
+  "hypotheses": [
+    { "id": "HYP-001", "statement": "Personalization/recommendation models influence 'Recommended' ranking and AI room recommendations", "basis": ["Smart Shopping docs EVID-020"], "confidence": "low" },
+    { "id": "HYP-002", "statement": "Server-driven UI blocks allow brand config without client releases", "basis": ["EG SDUI publications"], "confidence": "medium" }
+  ],
+  "evidence": [
+    { "id": "EVID-001", "type": "runtime", "source": "live target via Playwright/curl", "path": "evidence/screenshots/EVID-001-direct-home-botwall.png", "summary": "429 'Bot or Not?' challenge" },
+    { "id": "EVID-002", "type": "runtime_archived", "source": "Wayback 2025-08-15 home rendered in Chrome", "path": "evidence/screenshots/EVID-002-wb-home.png", "summary": "home structure, nav, carousels" },
+    { "id": "EVID-003", "type": "runtime_archived", "source": "Wayback 2024-08-21 Hotel-Search rendered in Chrome", "path": "evidence/screenshots/EVID-003-wb-search-results.png", "summary": "filters, sort, cards, EGDS fields" },
+    { "id": "EVID-004", "type": "runtime_archived", "source": "Wayback /lp/b/accommodation", "path": "evidence/screenshots/EVID-004-wb-accommodation-landing.png", "summary": "editorial landing + FAQ" },
+    { "id": "EVID-005", "type": "runtime_archived", "source": "Wayback /welcome-one-key", "path": "evidence/screenshots/EVID-005-wb-one-key.png", "summary": "One Key benefits copy" },
+    { "id": "EVID-006", "type": "runtime_archived", "source": "Wayback /lp/b/deals", "path": "evidence/screenshots/EVID-006-wb-deals.png", "summary": "deals hub" },
+    { "id": "EVID-007", "type": "runtime_archived", "source": "Wayback /trips", "path": "evidence/screenshots/EVID-007-wb-trips.png", "summary": "signed-out trips state" },
+    { "id": "EVID-008", "type": "runtime_archived", "source": "Wayback /lp/b/vacation-rentals", "path": "evidence/screenshots/EVID-008-wb-vacation-rentals.png", "summary": "rentals landing" },
+    { "id": "EVID-009", "type": "runtime_archived", "source": "Wayback /login", "path": "evidence/screenshots/EVID-009-wb-login.png", "summary": "email-first One Identity login" },
+    { "id": "EVID-010", "type": "runtime_archived", "source": "Wayback /lp/b/giftcards", "path": "evidence/screenshots/EVID-010-wb-giftcards.png", "summary": "gift cards" },
+    { "id": "EVID-011", "type": "runtime_archived", "source": "Wayback /one-key-cards", "path": "evidence/screenshots/EVID-011-wb-one-key-cards-503.png", "summary": "503 error state" },
+    { "id": "EVID-012", "type": "network", "source": "Playwright request logs", "path": "evidence/network/crawl-requests.json", "summary": "hosts, CDN, maps, beacons" },
+    { "id": "EVID-013", "type": "derived", "source": "bundle inventory", "path": "evidence/notes/crawl-index.json", "summary": "shared-ui module names" },
+    { "id": "EVID-014", "type": "structured_dom", "source": "extracted JSON per page", "path": "evidence/notes/EVID-00*.json", "summary": "headings/stid/inputs/buttons" },
+    { "id": "EVID-015", "type": "third_party_doc", "source": "upgradedpoints booking guide", "path": "web search capture 2026-09-30", "summary": "step-by-step booking flow" },
+    { "id": "EVID-016", "type": "official_doc", "source": "expedia.com/one-key-terms", "path": "web search capture 2026-09-30", "summary": "OneKeyCash/tiers/trip elements" },
+    { "id": "EVID-017", "type": "official_doc", "source": "Hotels.com Rewards T&Cs PDF", "path": "web search capture 2026-09-30", "summary": "stamps program" },
+    { "id": "EVID-018", "type": "third_party_teardown", "source": "screensdesign.com app flow", "path": "web search capture 2026-09-30", "summary": "56-screen app UX" },
+    { "id": "EVID-019", "type": "engineering_publications", "source": "Expedia Group blogs / kotlinlang case study", "path": "web search capture 2026-09-30", "summary": "GraphQL experience layer, SDUI, Kotlin, gRPC/K8s" },
+    { "id": "EVID-020", "type": "official_doc", "source": "hotels.com/why/smart-shopping", "path": "web search capture 2026-09-30", "summary": "compare <=5, AI room recs" },
+    { "id": "EVID-021", "type": "domain_research", "source": "holiday.com.mv, maldives.com, resort FAQs", "path": "web search capture 2026-09-30", "summary": "Maldives taxes/transfers/meal plans" }
+  ],
+  "open_questions": [
+    "Exact GraphQL endpoint paths and schemas",
+    "Property detail page visual anatomy on current web build",
+    "Checkout step visuals on current web build",
+    "Authenticated trips/account UIs",
+    "Ranking weights for Recommended sort",
+    "Payment/PCI architecture",
+    "Persistence/cache technology choices",
+    "Feature flag/experiment inventory"
+  ],
+  "coverage": {
+    "status": "sufficient_for_functional_reconstruction_with_documented_gaps",
+    "details_file": ".reverse-engineering/coverage.json",
+    "complete": ["home", "search_results", "sign_in", "trips_signed_out", "deals", "rewards_rules", "architecture", "integrations", "monetization", "maldives_domain"],
+    "partial": ["property_detail", "checkout", "apis_payloads", "edge_cases"],
+    "blocked": ["live_runtime", "authenticated_areas", "one_key_cards_snapshot"]
+  },
+  "confidence": {
+    "product_surface": "high",
+    "search_business_logic": "high",
+    "monetization_rewards": "high",
+    "auth_pattern": "high",
+    "client_architecture": "high",
+    "backend_architecture": "medium",
+    "property_detail_checkout": "medium",
+    "live_api_payloads": "none_blocked",
+    "maldives_domain_rules": "high"
+  },
+  "reconstruction_specification": {
+    "objective": "Destination-restricted Maldives hotels/resorts booking OTA web app modeled on Hotels.com patterns",
+    "classification_legend": ["ORIGINAL_OBSERVED", "ORIGINAL_INFERRED", "RECOMMENDED_FOR_REBUILD", "UNKNOWN"],
+    "levels": {
+      "level_1_functional_clone": ["search wizard with URL param contract", "results + cards with tax-inclusive pricing", "filters + sort", "property detail with rooms/rates", "Maldives quote engine", "mock checkout + confirmation", "core layout with empty/error states"],
+      "level_2_product_equivalent": ["mock auth + member prices", "trips/save + booking history", "rewards ledger (stamps/cashback)", "compare <=3", "deals hub", "cancellation flow", "reviews"],
+      "level_3_production_grade": ["GraphQL gateway or REST API with real DB", "supplier/inventory connectivity", "payment PSP + PCI scope", "email/SMS notifications", "observability + error tracking", "CDN + edge security", "autoscaling + caching", "fraud/abuse protection"]
+    },
+    "components": [
+      { "name": "search wizard", "classification": "ORIGINAL_OBSERVED", "basis": "EVID-003" },
+      { "name": "filter/sort engine", "classification": "ORIGINAL_OBSERVED", "basis": "EVID-003" },
+      { "name": "lodging card + results list", "classification": "ORIGINAL_OBSERVED", "basis": "EVID-003" },
+      { "name": "property detail composition", "classification": "ORIGINAL_INFERRED", "basis": "EVID-013/015/018" },
+      { "name": "checkout wizard", "classification": "ORIGINAL_INFERRED", "basis": "EVID-015" },
+      { "name": "One Identity auth", "classification": "ORIGINAL_OBSERVED", "basis": "EVID-009" },
+      { "name": "loyalty ledger (OneKeyCash/stamps)", "classification": "ORIGINAL_OBSERVED", "basis": "EVID-016/017" },
+      { "name": "GraphQL experience layer", "classification": "ORIGINAL_OBSERVED", "basis": "EVID-012/019" },
+      { "name": "REST API for rebuild", "classification": "RECOMMENDED_FOR_REBUILD", "basis": "single-destination scale" },
+      { "name": "localStorage persistence for rebuild", "classification": "RECOMMENDED_FOR_REBUILD", "basis": "demo scope" },
+      { "name": "Maldives quote engine (taxes/transfer/meal)", "classification": "RECOMMENDED_FOR_REBUILD", "basis": "EVID-021 destination requirements" },
+      { "name": "server persistence/queue/cache tech", "classification": "UNKNOWN", "basis": "not observable" }
+    ],
+    "domain_model": ["User", "Session", "Destination/Atoll", "Property(Island)", "RoomType", "RatePlan", "MealPlan", "Transfer", "PriceQuote", "Booking", "Trip", "RewardsAccount", "Offer"],
+    "apis_required": ["POST /api/search", "GET /api/properties/:slug", "POST /api/quote", "POST /api/bookings", "GET /api/bookings/:id", "POST /api/auth/login|signup|logout", "GET /api/offers", "POST /api/rewards/apply"],
+    "business_rules_to_implement": ["rule-member-price", "rule-rate-plan", "rule-maldives-tax-stack", "rule-seaplane-window", "rule-stamps-legacy-lite", "rule-trips-gate"],
+    "state_machines_to_implement": ["sm-booking", "sm-rewards", "sm-session"],
+    "backlog_ref": "REVERSE_ENGINEERING_REPORT.md §18",
+    "non_functional": ["responsive desktop/mobile", "accessible forms", "deterministic pricing math", "no external network dependency for demo", "URL-shareable search state"]
+  }
+}
