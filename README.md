@@ -73,7 +73,7 @@ Research artifacts produced before implementation (skill Phases 0–7):
 
 - `REVERSE_ENGINEERING_REPORT.md` — full teardown + §17 reconstruction spec + P0–P3 backlog
 - `product-model.json` — machine-readable model + `reconstruction_specification`
-- `.reverse-engineering/` — investigation log (JSONL), coverage matrix, 36 evidence files
+- `.reverse-engineering/` (local, gitignored) — investigation log (JSONL), coverage matrix, 36 evidence files
   (screenshots, notes, network logs captured via Playwright against Wayback snapshots of hotels.com;
   live site was behind a DataDome bot wall — documented as `BLOCKED`)
 

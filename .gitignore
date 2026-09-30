@@ -3,4 +3,7 @@ dist/
 *.tsbuildinfo
 preview.log
 nohup.out
+vercel-login.log
+vercel-login.pid
+.reverse-engineering/
 .DS_Store
