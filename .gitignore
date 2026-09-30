@@ -12,6 +12,4 @@ vercel-login.pid
 .vercel/
 .DS_Store
 
-.vercel
-.env*
 ca.pooler.pem
