@@ -1,6 +1,6 @@
 export type TransferType = 'speedboat' | 'seaplane' | 'domestic';
 
-export type MealPlanCode = 'BB' | 'HB' | 'FB' | 'AI' | 'PAI';
+export type MealPlanCode = 'BB' | 'HB' | 'FB' | 'AI' | 'PAI' | 'RO' | 'ALL';
 
 export type VillaView = 'garden' | 'beach' | 'overwater';
 
@@ -9,6 +9,9 @@ export interface Atoll {
   name: string;
   group: string;
   transfer: TransferType;
+  /** Approximate atoll-centroid coordinates for the map view */
+  lat: number;
+  lng: number;
 }
 
 export interface Villa {
@@ -61,15 +64,12 @@ export interface SearchParams {
 export interface Filters {
   priceMax: number;
   minStars: number;
-  minRating: number;
-  transfers: TransferType[];
   mealPlans: MealPlanCode[];
+  /** CMS amenity tags — only amenities present in the result set apply. */
   amenities: string[];
-  view: VillaView | 'any';
-  freeCancellation: boolean;
 }
 
-export type SortKey = 'featured' | 'price_asc' | 'price_desc' | 'rating' | 'distance';
+export type SortKey = 'featured' | 'price_asc' | 'price_desc' | 'stars';
 
 export interface Traveler {
   firstName: string;
@@ -93,6 +93,8 @@ export interface PriceQuote {
   tgst: number;
   greenTax: number;
   transferTotal: number;
+  /** Display label of the chosen portal transfer (snapshot on the quote). */
+  transferLabel?: string;
   total: number;
   perNight: number;
   perPersonNight: number;
@@ -104,6 +106,10 @@ export interface Booking {
   resortId: string;
   villaId: string;
   mealPlan: MealPlanCode;
+  /** Live-rate identity of the booked hotel/room (portal slug + display names). */
+  hotelSlug?: string;
+  hotelName?: string;
+  roomName?: string;
   checkIn: string;
   checkOut: string;
   adults: number;
@@ -123,6 +129,25 @@ export interface Booking {
 export interface Member {
   name: string;
   email: string;
+}
+
+/** A stay saved by the user, with enough metadata to render without a lookup. */
+export interface SavedEntry {
+  slug: string;
+  hotelId?: string | null;
+  name?: string | null;
+}
+
+/** Compare slot (max 3) — populated from search result cards. */
+export interface CompareItem {
+  slug: string;
+  hotelId: string;
+  name: string;
+  atollLabel: string;
+  stars: number | null;
+  meal: string;
+  total: number;
+  photo?: string | null;
 }
 
 export interface Rewards {

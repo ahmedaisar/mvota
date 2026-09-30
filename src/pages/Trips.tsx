@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
-import { RESORTS, ATOLL_MAP, TRANSFER_LABEL, MEAL_PLAN_MAP } from '../data/resorts';
-import { TRANSFER_BY_ATOLL } from '../lib/pricing';
 import { longDate, money } from '../lib/format';
-import ResortCard from '../components/ResortCard';
 
 type Tab = 'upcoming' | 'past' | 'saved' | 'rewards';
 
@@ -54,13 +51,12 @@ export default function Trips() {
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = bookings.filter((b) => b.status === 'confirmed' && b.checkOut >= today);
   const past = bookings.filter((b) => b.status !== 'confirmed' || b.checkOut < today);
-  const savedResorts = RESORTS.filter((r) => saved.includes(r.slug));
   const progress = rewards.stamps % 10;
 
   const tabs: [Tab, string, number][] = [
     ['upcoming', 'Upcoming', upcoming.length],
     ['past', 'Past & cancelled', past.length],
-    ['saved', 'Saved', savedResorts.length],
+    ['saved', 'Saved', saved.length],
     ['rewards', 'Rewards', 0],
   ];
 
@@ -95,32 +91,37 @@ export default function Trips() {
           <div className="space-y-4">
             {dataLoading && bookings.length === 0 && <Empty text="Loading your bookings…" />}
             {!dataLoading && upcoming.length === 0 && <Empty text="No upcoming island trips yet — your quote engine is waiting." />}
-            {upcoming.map((b) => {
-              const resort = RESORTS.find((r) => r.id === b.resortId);
-              if (!resort) return null;
-              return (
-                <BookingCard key={b.id} booking={b} resort={resort} onCancel={() => cancelBooking(b.id)} />
-              );
-            })}
+            {upcoming.map((b) => (
+              <BookingCard key={b.id} booking={b} onCancel={() => cancelBooking(b.id)} />
+            ))}
           </div>
         )}
 
         {tab === 'past' && (
           <div className="space-y-4">
             {past.length === 0 && <Empty text="Nothing here yet — completed and cancelled stays will appear." />}
-            {past.map((b) => {
-              const resort = RESORTS.find((r) => r.id === b.resortId);
-              if (!resort) return null;
-              return <BookingCard key={b.id} booking={b} resort={resort} onCancel={() => cancelBooking(b.id)} />;
-            })}
+            {past.map((b) => (
+              <BookingCard key={b.id} booking={b} onCancel={() => cancelBooking(b.id)} />
+            ))}
           </div>
         )}
 
         {tab === 'saved' && (
           <div className="grid gap-5 sm:grid-cols-2">
-            {savedResorts.length === 0 && <Empty text="Tap the bookmark on any resort to save it for later." />}
-            {savedResorts.map((r) => (
-              <ResortCard key={r.id} resort={r} />
+            {saved.length === 0 && <div className="sm:col-span-2"><Empty text="Tap the bookmark on any resort to save it for later." /></div>}
+            {saved.slice(0, showAllStays ? undefined : 4).map((s) => (
+              <article key={s.slug} className="flex items-center justify-between gap-4 rounded-2xl border border-sand-200 bg-white p-5">
+                <div>
+                  <div className="font-display text-lg font-semibold text-ink-950">{s.name ?? s.slug}</div>
+                  <div className="text-xs text-ink-500">{s.hotelId ? `Hotel ${s.hotelId}` : 'Saved stay'}</div>
+                </div>
+                <Link
+                  to={`/resort/${s.slug}`}
+                  className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-lagoon-700"
+                >
+                  View live rates
+                </Link>
+              </article>
             ))}
           </div>
         )}
@@ -158,9 +159,9 @@ export default function Trips() {
         )}
       </div>
 
-      {savedResorts.length > 0 && tab === 'saved' && savedResorts.length > 4 && (
+      {saved.length > 0 && tab === 'saved' && saved.length > 4 && (
         <button onClick={() => setShowAllStays((v) => !v)} className="mt-4 text-sm font-bold text-lagoon-700">
-          {showAllStays ? 'Show less' : `Show all ${savedResorts.length}`}
+          {showAllStays ? 'Show less' : `Show all ${saved.length}`}
         </button>
       )}
     </div>
@@ -175,26 +176,19 @@ function Empty({ text }: { text: string }) {
   );
 }
 
-function BookingCard({
-  booking,
-  resort,
-  onCancel,
-}: {
-  booking: import('../types').Booking;
-  resort: import('../types').Resort;
-  onCancel: () => void;
-}) {
-  const transfer = TRANSFER_BY_ATOLL[resort.atollId];
+function BookingCard({ booking, onCancel }: { booking: import('../types').Booking; onCancel: () => void }) {
+  const { currency } = useApp();
   const cancelled = booking.status === 'cancelled';
+  const hotelName = booking.hotelName ?? 'Resort stay';
+  const roomName = booking.roomName ?? booking.villaId.split('|')[0] ?? 'Room';
+  const transferLabel = booking.quote.transferLabel ?? 'Transfer arranged at booking';
   return (
     <div className={`rounded-2xl border bg-white p-5 ${cancelled ? 'border-sand-200 opacity-70' : 'border-sand-200'}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-xs font-bold uppercase tracking-widest text-lagoon-700">{booking.code}</div>
-          <h3 className="mt-1 font-display text-xl font-semibold text-ink-950">{resort.name}</h3>
-          <p className="text-sm text-ink-500">
-            {resort.island} · {ATOLL_MAP[resort.atollId]?.name}
-          </p>
+          <h3 className="mt-1 font-display text-xl font-semibold text-ink-950">{hotelName}</h3>
+          <p className="text-sm text-ink-500">Maldives · live-rate booking</p>
         </div>
         <span
           className={`rounded-full px-3 py-1 text-xs font-bold ${cancelled ? 'bg-sand-200 text-ink-700' : booking.status === 'completed' ? 'bg-lagoon-100 text-lagoon-700' : 'bg-lagoon-600 text-white'}`}
@@ -209,16 +203,16 @@ function BookingCard({
         </div>
         <div>
           <div className="text-xs font-bold uppercase text-ink-500">Room & plan</div>
-          {resort.villas.find((v) => v.id === booking.villaId)?.name} · {MEAL_PLAN_MAP[booking.mealPlan].short}
+          {roomName} · {booking.mealPlan}
         </div>
         <div>
           <div className="text-xs font-bold uppercase text-ink-500">Transfer</div>
-          {TRANSFER_LABEL[transfer]}
+          {transferLabel}
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-sand-300 pt-3">
         <div className="text-sm">
-          <span className="font-bold text-ink-950">{money(booking.quote.total)}</span>
+          <span className="font-bold text-ink-950">{money(booking.quote.total, currency)}</span>
           <span className="text-ink-500"> · {booking.paymentType === 'paid' ? 'paid' : 'pay at resort'}</span>
         </div>
         {!cancelled && booking.status === 'confirmed' && booking.refundable && (

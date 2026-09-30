@@ -1,9 +1,20 @@
-export function money(n: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+import { convertFromUsd } from './fx';
+
+export function money(n: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: currency === 'USD' || currency === 'EUR' || currency === 'GBP' ? 0 : 0,
+  }).format(convertFromUsd(n, currency));
 }
 
-export function moneyExact(n: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+export function moneyExact(n: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(convertFromUsd(n, currency));
 }
 
 export function shortDate(iso: string): string {

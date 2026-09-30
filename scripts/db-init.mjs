@@ -63,6 +63,12 @@ const statements = [
          add constraint saved_stays_user_fk foreign key (user_id) references auth.users (id) on delete cascade;
      end if;
    end $$`,
+  `do $$ begin
+     if not exists (select 1 from pg_constraint where conname = 'reviews_user_fk') then
+       alter table public.reviews
+         add constraint reviews_user_fk foreign key (user_id) references auth.users (id) on delete cascade;
+     end if;
+   end $$`,
 
   // Domain checks Prisma does not manage
   `do $$ begin
@@ -74,6 +80,10 @@ const statements = [
        alter table public.bookings
          add constraint bookings_payment_type_check check (payment_type in ('pay_at_property', 'paid'));
      end if;
+     if not exists (select 1 from pg_constraint where conname = 'reviews_rating_check') then
+       alter table public.reviews
+         add constraint reviews_rating_check check (rating between 1 and 5);
+     end if;
    end $$`,
 
   // Row Level Security
@@ -81,6 +91,14 @@ const statements = [
   `alter table public.rewards enable row level security`,
   `alter table public.bookings enable row level security`,
   `alter table public.saved_stays enable row level security`,
+  `alter table public.hotel_content enable row level security`,
+  `alter table public.reviews enable row level security`,
+
+  // is_admin(): security-definer so RLS can check the caller's role without
+  // exposing other users' profile rows.
+  `create or replace function public.is_admin() returns boolean
+     language sql security definer set search_path = public stable
+   as $$ select exists (select 1 from profiles where id = auth.uid() and role = 'admin') $$`,
 
   `drop policy if exists "own profile" on public.profiles`,
   `create policy "own profile" on public.profiles for select using (auth.uid() = id)`,
@@ -106,10 +124,33 @@ const statements = [
   `drop policy if exists "unsave own stays" on public.saved_stays`,
   `create policy "unsave own stays" on public.saved_stays for delete using (auth.uid() = user_id)`,
 
+  // CMS: world-readable content, admin-only writes.
+  `drop policy if exists "public read hotel_content" on public.hotel_content`,
+  `create policy "public read hotel_content" on public.hotel_content for select using (true)`,
+  `drop policy if exists "admin insert hotel_content" on public.hotel_content`,
+  `create policy "admin insert hotel_content" on public.hotel_content for insert with check (public.is_admin())`,
+  `drop policy if exists "admin update hotel_content" on public.hotel_content`,
+  `create policy "admin update hotel_content" on public.hotel_content for update using (public.is_admin())`,
+  `drop policy if exists "admin delete hotel_content" on public.hotel_content`,
+  `create policy "admin delete hotel_content" on public.hotel_content for delete using (public.is_admin())`,
+
+  // Reviews: public read; authenticated authors manage their own; admins moderate.
+  `drop policy if exists "public read reviews" on public.reviews`,
+  `create policy "public read reviews" on public.reviews for select using (true)`,
+  `drop policy if exists "insert own reviews" on public.reviews`,
+  `create policy "insert own reviews" on public.reviews for insert with check (auth.uid() = user_id)`,
+  `drop policy if exists "update own reviews" on public.reviews`,
+  `create policy "update own reviews" on public.reviews for update using (auth.uid() = user_id)`,
+  `drop policy if exists "delete own or admin reviews" on public.reviews`,
+  `create policy "delete own or admin reviews" on public.reviews for delete using (auth.uid() = user_id or public.is_admin())`,
+
   `grant all on table public.profiles to postgres, anon, authenticated, service_role`,
   `grant all on table public.rewards to postgres, anon, authenticated, service_role`,
   `grant all on table public.bookings to postgres, anon, authenticated, service_role`,
   `grant all on table public.saved_stays to postgres, anon, authenticated, service_role`,
+  `grant all on table public.hotel_content to postgres, anon, authenticated, service_role`,
+  `grant all on table public.reviews to postgres, anon, authenticated, service_role`,
+  `grant execute on function public.is_admin() to postgres, anon, authenticated, service_role`,
 
   // Profile + rewards rows are created automatically at signup.
   `create or replace function public.handle_new_user() returns trigger
@@ -135,7 +176,8 @@ for (const [i, sql] of statements.entries()) {
   try {
     await prisma.$executeRawUnsafe(sql);
   } catch (e) {
-    console.error(`  [${i + 1}/${statements.length}] FAILED: ${e.message.split('\n')[0]}`);
+    console.error(`  [${i + 1}/${statements.length}] FAILED: ${(e.message || String(e)).trim().split('\n')[0] || e.code || e}`);
+    console.error(`    SQL: ${sql.slice(0, 160).replace(/\s+/g, ' ')}`);
     failed = true;
     break;
   }
@@ -144,7 +186,7 @@ if (!failed) console.log(`Applied ${statements.length} statements.`);
 
 const tables = await prisma.$queryRawUnsafe(
   `select table_name t from information_schema.tables where table_schema = 'public'
-     and table_name in ('profiles','rewards','bookings','saved_stays') order by 1`,
+     and table_name in ('profiles','rewards','bookings','saved_stays','hotel_content','reviews') order by 1`,
 );
 const policies = await prisma.$queryRawUnsafe(
   `select count(*)::int n from pg_policies where schemaname = 'public'`,

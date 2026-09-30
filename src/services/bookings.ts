@@ -7,6 +7,9 @@ interface BookingRow {
   resort_id: string;
   villa_id: string;
   meal_plan: string;
+  hotel_slug?: string | null;
+  hotel_name?: string | null;
+  room_name?: string | null;
   check_in: string;
   check_out: string;
   adults: number;
@@ -30,6 +33,9 @@ function rowToBooking(r: BookingRow): Booking {
     resortId: r.resort_id,
     villaId: r.villa_id,
     mealPlan: r.meal_plan as MealPlanCode,
+    hotelSlug: r.hotel_slug ?? undefined,
+    hotelName: r.hotel_name ?? undefined,
+    roomName: r.room_name ?? undefined,
     checkIn: r.check_in.slice(0, 10),
     checkOut: r.check_out.slice(0, 10),
     adults: r.adults,
@@ -67,6 +73,9 @@ export async function insertBooking(userId: string, b: Booking): Promise<void> {
       resort_id: b.resortId,
       villa_id: b.villaId,
       meal_plan: b.mealPlan,
+      hotel_slug: b.hotelSlug ?? null,
+      hotel_name: b.hotelName ?? null,
+      room_name: b.roomName ?? null,
       check_in: b.checkIn,
       check_out: b.checkOut,
       adults: b.adults,

@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import Scene from '../components/Scene';
-import { ATOLL_MAP, MEAL_PLAN_MAP, RESORT_BY_SLUG, TRANSFER_LABEL } from '../data/resorts';
-import { ISLAND_CASH_RATE, TRANSFER_BY_ATOLL, buildQuote, seaplaneArrivalWarning } from '../lib/pricing';
+import HotelImage from '../components/HotelImage';
+import { MEAL_PLAN_MAP } from '../data/resorts';
+import { ISLAND_CASH_RATE, buildLiveQuote, nightsBetween, seaplaneArrivalWarning } from '../lib/pricing';
 import { bookingCode, longDate, money } from '../lib/format';
 import { useApp } from '../store/AppContext';
 import type { Booking, Traveler } from '../types';
+import { getRateQuote, toMealCode, type RateQuote } from '../services/availability';
+import { getContentByHotelId, type HotelContent } from '../services/content';
 
 const emptyTraveler: Traveler = {
   firstName: '',
@@ -16,19 +18,24 @@ const emptyTraveler: Traveler = {
   requests: '',
 };
 
+type Status = 'loading' | 'error' | 'ready';
+
 export default function Checkout() {
   const [params] = useSearchParams();
-  const resort = RESORT_BY_SLUG[params.get('resort') ?? ''];
-  const villaId = params.get('villa') ?? '';
-  const planParam = params.get('plan');
-  const villa = resort?.villas.find((v) => v.id === villaId);
+  const slug = params.get('resort') ?? '';
+  const roomName = params.get('room') ?? '';
+  const planRaw = params.get('plan') ?? '';
+  const transferParam = Number(params.get('transfer') ?? '0');
+  const transferLabelParam = params.get('tlabel') ?? '';
 
-  const { search, member, session, rewards, addBooking, redeemIslandCash, openAuth } = useApp();
+  const { search, member, session, rewards, addBooking, redeemIslandCash, openAuth, currency } = useApp();
   const navigate = useNavigate();
 
-  const plan = planParam && resort?.mealPlans.includes(planParam as keyof typeof MEAL_PLAN_MAP)
-    ? (planParam as keyof typeof MEAL_PLAN_MAP)
-    : resort?.mealPlans[0];
+  const [status, setStatus] = useState<Status>('loading');
+  const [error, setError] = useState<string | null>(null);
+  const [quote, setQuote] = useState<RateQuote | null>(null);
+  const [content, setContent] = useState<HotelContent | null>(null);
+  const [retry, setRetry] = useState(0);
 
   const [traveler, setTraveler] = useState<Traveler>(() => ({
     ...emptyTraveler,
@@ -37,44 +44,104 @@ export default function Checkout() {
     lastName: member?.name.split(' ').slice(1).join(' ') ?? '',
   }));
   const [useCash, setUseCash] = useState(false);
-  const [arrival, setArrival] = useState('');
+  const [arrival, setArrival] = useState(params.get('arrival') ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!slug || !roomName) {
+      setStatus('error');
+      setError('This checkout link is missing a room — pick your stay again.');
+      return;
+    }
+    let cancelled = false;
+    setStatus('loading');
+    setError(null);
+    (async () => {
+      try {
+        const q = await getRateQuote(slug, {
+          checkIn: search.checkIn,
+          checkOut: search.checkOut,
+          adults: search.adults,
+          children: search.children,
+        });
+        if (cancelled) return;
+        setQuote(q);
+        const c = await getContentByHotelId(q.hotel_id).catch(() => null);
+        if (cancelled) return;
+        setContent(c);
+        setStatus('ready');
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Rates are unavailable right now.');
+        setStatus('error');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, roomName, search.checkIn, search.checkOut, search.adults, search.children, retry]);
+
+  const selectedRoom = useMemo(
+    () => quote?.rooms.find((r) => r.room_name === roomName && r.meal_plan === planRaw),
+    [quote, roomName, planRaw],
+  );
+  const netPrice = selectedRoom?.net_price ?? null;
+  const mealCode = toMealCode(planRaw);
   const cashApplied = useCash && session ? Math.min(rewards.islandCash, 2000) : 0;
 
-  const quote = useMemo(() => {
-    if (!resort || !villa || !plan) return null;
-    return buildQuote({
-      resort,
-      villa,
-      mealPlan: plan,
+  const priceQuote = useMemo(() => {
+    if (netPrice === null) return null;
+    return buildLiveQuote({
+      netPrice,
       checkIn: search.checkIn,
       checkOut: search.checkOut,
       adults: search.adults,
       children: search.children,
       member: !!session,
+      transferTotal: Number.isFinite(transferParam) ? transferParam : 0,
       islandCashApplied: cashApplied,
     });
-  }, [resort, villa, plan, search, session, cashApplied]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- transfer snapshot comes from the link
+  }, [netPrice, search, session, cashApplied]);
 
-  if (!resort || !villa || !plan || !quote) {
+  if (status === 'loading') {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
-        <h1 className="font-display text-2xl font-semibold text-ink-950">Your session expired</h1>
-        <p className="mt-2 text-ink-500">Pick a resort again to rebuild your quote.</p>
-        <Link to="/search" className="mt-5 inline-block rounded-xl bg-ink-900 px-5 py-3 text-sm font-bold text-white">
-          Back to search
-        </Link>
+      <div className="mx-auto max-w-6xl animate-pulse px-4 py-8 sm:px-6">
+        <div className="h-6 w-56 rounded bg-sand-100" />
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <div className="h-96 rounded-3xl bg-sand-100" />
+          <div className="h-96 rounded-3xl bg-sand-100" />
+        </div>
       </div>
     );
   }
 
-  const transfer = TRANSFER_BY_ATOLL[resort.atollId];
-  const warning = seaplaneArrivalWarning(arrival, transfer);
-  const refundable = quote.nights >= 5;
-  const stampProgress = rewards.stamps;
-  const earnedCash = Math.round(quote.total * ISLAND_CASH_RATE);
+  if (status === 'error' || !quote || !selectedRoom || !priceQuote) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+        <h1 className="font-display text-2xl font-semibold text-ink-950">Rates unavailable</h1>
+        <p className="mt-2 text-sm text-ink-500">{error ?? 'That room is no longer offered for your dates.'}</p>
+        <div className="mt-5 flex justify-center gap-3">
+          <button
+            onClick={() => setRetry((r) => r + 1)}
+            className="rounded-xl bg-ink-900 px-5 py-3 text-sm font-bold text-white hover:bg-lagoon-700"
+          >
+            Try again
+          </button>
+          <Link to="/search" className="rounded-xl border border-sand-300 px-5 py-3 text-sm font-bold text-ink-700 hover:bg-sand-50">
+            Back to search
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isSeaplane = /seaplane/i.test(transferLabelParam);
+  const warning = seaplaneArrivalWarning(arrival, isSeaplane ? 'seaplane' : '');
+  const refundable = !/non.?refund/i.test(String(selectedRoom.cancellation_policy ?? ''));
+  const nights = nightsBetween(search.checkIn, search.checkOut);
+  const earnedCash = Math.round(priceQuote.total * ISLAND_CASH_RATE);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,10 +156,13 @@ export default function Checkout() {
       const id = crypto.randomUUID();
       const booking: Booking = {
         id,
-        code: bookingCode(id + villa.id + search.checkIn),
-        resortId: resort.id,
-        villaId: villa.id,
-        mealPlan: plan,
+        code: bookingCode(id + roomName + search.checkIn),
+        resortId: quote.hotel_id,
+        villaId: `${roomName}|${planRaw}`,
+        mealPlan: mealCode,
+        hotelSlug: quote.hotel_slug,
+        hotelName: quote.hotel_name,
+        roomName: selectedRoom.room_name,
         checkIn: search.checkIn,
         checkOut: search.checkOut,
         adults: search.adults,
@@ -101,12 +171,12 @@ export default function Checkout() {
         paymentType: 'pay_at_property',
         refundable,
         traveler: { ...traveler, arrivalFlight: traveler.arrivalFlight || arrival },
-        quote,
+        quote: { ...priceQuote, transferLabel: transferLabelParam },
         status: 'confirmed',
         createdAt: new Date().toISOString(),
         islandCashUsed: cashApplied,
         islandCashEarned: earnedCash,
-        stampsEarned: quote.nights,
+        stampsEarned: nights,
       };
       await addBooking(booking);
       if (cashApplied) await redeemIslandCash(cashApplied);
@@ -122,12 +192,12 @@ export default function Checkout() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <Link to={`/resort/${resort.slug}`} className="text-sm font-semibold text-lagoon-700 hover:underline">
-        ← Back to {resort.name}
+      <Link to={`/resort/${quote.hotel_slug}`} className="text-sm font-semibold text-lagoon-700 hover:underline">
+        ← Back to {quote.hotel_name}
       </Link>
       <h1 className="mt-3 font-display text-3xl font-semibold text-ink-950">Checkout</h1>
       <p className="mt-1 text-sm text-ink-500">
-        {longDate(search.checkIn)} → {longDate(search.checkOut)} · {quote.nights} nights
+        {longDate(search.checkIn)} → {longDate(search.checkOut)} · {priceQuote.nights} nights
       </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
@@ -191,8 +261,8 @@ export default function Checkout() {
               <span>
                 <span className="block font-bold text-ink-950">Pay at the resort</span>
                 <span className="block text-sm text-ink-500">
-                  Your card is only held for the booking — settle {money(quote.total)} at check-in. IslandCash and stamps
-                  post after check-out.
+                  Your card is only held for the booking — settle {money(priceQuote.total, currency)} at check-in.
+                  IslandCash and stamps post after check-out.
                 </span>
               </span>
             </div>
@@ -235,51 +305,52 @@ export default function Checkout() {
             disabled={!!warning || submitting}
             className="w-full rounded-xl bg-coral-500 py-4 text-base font-bold text-white shadow-lg shadow-coral-500/30 transition hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-ink-300 disabled:shadow-none"
           >
-            {submitting ? 'Confirming…' : !session ? 'Sign in to book' : `Confirm — pay ${money(quote.total)} at resort`}
+            {submitting ? 'Confirming…' : !session ? 'Sign in to book' : `Confirm — pay ${money(priceQuote.total, currency)} at resort`}
           </button>
         </form>
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="overflow-hidden rounded-3xl border border-sand-200 bg-white shadow-xl">
-            <Scene resort={resort} className="h-40 w-full" />
+            <HotelImage name={quote.hotel_name} photo={content?.photos[0] ?? null} className="h-40 w-full" />
             <div className="p-5">
-              <div className="font-display text-lg font-semibold text-ink-950">{resort.name}</div>
+              <div className="font-display text-lg font-semibold text-ink-950">{quote.hotel_name}</div>
               <div className="text-xs text-ink-500">
-                {ATOLL_MAP[resort.atollId]?.name} · {TRANSFER_LABEL[transfer]} {resort.transferMinutes} min
+                {content?.atoll || 'Maldives'} · {transferLabelParam || 'Transfer arranged at booking'}
               </div>
               <div className="mt-3 rounded-xl bg-sand-100 p-3 text-sm">
-                <div className="font-bold text-ink-950">{villa.name}</div>
+                <div className="font-bold text-ink-950">{selectedRoom.room_name}</div>
                 <div className="text-ink-700">
-                  {MEAL_PLAN_MAP[plan].name} · {search.adults + search.children} guests · {search.rooms} room
+                  {MEAL_PLAN_MAP[mealCode]?.name ?? planRaw} · {search.adults + search.children} guests · {search.rooms} room
                   {search.rooms > 1 ? 's' : ''}
                 </div>
               </div>
 
               <dl className="mt-4 space-y-2 text-sm">
-                <Row label={`Villa × ${quote.nights} nights`} value={money(quote.roomSubtotal)} />
-                <Row label="Meal plan" value={money(quote.mealUplift)} />
-                {quote.longStayDiscount > 0 && <Row label="5th night free" value={`−${money(quote.longStayDiscount)}`} accent />}
-                {quote.memberDiscount > 0 && <Row label="Member −10%" value={`−${money(quote.memberDiscount)}`} accent />}
-                {cashApplied > 0 && <Row label="IslandCash applied" value={`−${money(cashApplied)}`} accent />}
-                <Row label="Service charge (10%)" value={money(quote.serviceCharge)} />
-                <Row label="TGST (17%)" value={money(quote.tgst)} />
-                <Row label="Green tax" value={money(quote.greenTax)} />
-                <Row label={TRANSFER_LABEL[transfer]} value={money(quote.transferTotal)} />
+                <Row label={`Room × ${priceQuote.nights} nights`} value={money(priceQuote.roomSubtotal, currency)} />
+                {priceQuote.longStayDiscount > 0 && <Row label="5th night free" value={`−${money(priceQuote.longStayDiscount, currency)}`} accent />}
+                {priceQuote.memberDiscount > 0 && <Row label="Member −10%" value={`−${money(priceQuote.memberDiscount, currency)}`} accent />}
+                {cashApplied > 0 && <Row label="IslandCash applied" value={`−${money(cashApplied, currency)}`} accent />}
+                <Row label="Service charge (10%)" value={money(priceQuote.serviceCharge, currency)} />
+                <Row label="TGST (17%)" value={money(priceQuote.tgst, currency)} />
+                <Row label="Green tax" value={money(priceQuote.greenTax, currency)} />
+                {priceQuote.transferTotal > 0 && (
+                  <Row label={transferLabelParam || 'Transfer'} value={money(priceQuote.transferTotal, currency)} />
+                )}
               </dl>
 
               <div className="mt-3 flex items-baseline justify-between border-t border-dashed border-sand-300 pt-3">
                 <span className="font-bold text-ink-950">Total</span>
-                <span className="text-3xl font-bold text-ink-950">{money(quote.total)}</span>
+                <span className="text-3xl font-bold text-ink-950">{money(priceQuote.total, currency)}</span>
               </div>
-              <div className="text-right text-xs text-ink-500">{money(quote.perPersonNight)} per person / night, all in</div>
+              <div className="text-right text-xs text-ink-500">
+                {money(priceQuote.perPersonNight, currency)} per person / night, all in
+              </div>
 
               <div className="mt-4 space-y-1.5 rounded-xl bg-lagoon-100/60 p-3 text-xs font-semibold text-lagoon-700">
-                <div>✓ {refundable ? 'Free cancellation until 48h before arrival' : 'Non-refundable rate'}</div>
-                <div>✓ Earn {money(earnedCash)} IslandCash after check-out</div>
-                <div>
-                  ✓ Stamp progress: {stampProgress % 10}/10 nights → $100 credit
-                </div>
-                {transfer === 'seaplane' && <div>✓ Seaplane window 06:00–16:00 enforced above</div>}
+                <div>✓ {refundable ? 'Free cancellation per rate conditions' : 'Non-refundable rate'}</div>
+                <div>✓ Earn {money(earnedCash, currency)} IslandCash after check-out</div>
+                <div>✓ Stamp progress: {rewards.stamps % 10}/10 nights → $100 credit</div>
+                {isSeaplane && <div>✓ Seaplane window 06:00–16:00 enforced above</div>}
               </div>
             </div>
           </div>

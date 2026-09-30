@@ -1,5 +1,5 @@
-import type { Filters, MealPlanCode, SortKey, TransferType, VillaView } from '../types';
-import { AMENITIES, MEAL_PLANS } from '../data/resorts';
+import type { Filters, MealPlanCode, SortKey } from '../types';
+import { MEAL_PLAN_MAP } from '../data/resorts';
 
 interface Props {
   filters: Filters;
@@ -7,10 +7,16 @@ interface Props {
   sort: SortKey;
   setSort: (s: SortKey) => void;
   resultCount: number;
+  /** Meal codes present in the live result set. */
+  mealCodes: MealPlanCode[];
+  /** CMS amenity tags present in the live result set. */
+  amenityOptions: string[];
 }
 
+const defaultFilters: Filters = { priceMax: 20000, minStars: 0, mealPlans: [], amenities: [] };
+
 const fieldset = (title: string, children: React.ReactNode, key: string) => (
-  <details key={key} className="group border-b border-sand-200 py-3">
+  <details key={key} className="group border-b border-sand-200 py-3" open>
     <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-ink-900">
       {title}
       <span className="text-ink-500 transition group-open:rotate-45">+</span>
@@ -28,7 +34,7 @@ function Check({ label, checked, onChange }: { label: string; checked: boolean; 
   );
 }
 
-export default function FiltersPanel({ filters, setFilters, sort, setSort, resultCount }: Props) {
+export default function FiltersPanel({ filters, setFilters, sort, setSort, resultCount, mealCodes, amenityOptions }: Props) {
   const toggleIn = <T,>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
   return (
@@ -45,27 +51,12 @@ export default function FiltersPanel({ filters, setFilters, sort, setSort, resul
           onChange={(e) => setSort(e.target.value as SortKey)}
           className="mt-1.5 w-full rounded-xl border border-sand-300 bg-sand-50 px-3 py-2 font-semibold text-ink-900 outline-none focus:border-lagoon-500"
         >
-          <option value="featured">Featured (Hotels.com style)</option>
+          <option value="featured">Recommended</option>
           <option value="price_asc">Price: low to high</option>
           <option value="price_desc">Price: high to low</option>
-          <option value="rating">Guest rating</option>
-          <option value="distance">Distance from Malé</option>
+          <option value="stars">Star rating</option>
         </select>
       </label>
-
-      {fieldset(
-        'Popular filters',
-        <>
-          <Check
-            label="Free cancellation"
-            checked={filters.freeCancellation}
-            onChange={() => setFilters({ ...filters, freeCancellation: !filters.freeCancellation })}
-          />
-          <Check label="House reef" checked={filters.amenities.includes('House reef')} onChange={() => setFilters({ ...filters, amenities: toggleIn(filters.amenities, 'House reef') })} />
-          <Check label="Private pool" checked={filters.amenities.includes('Private pool')} onChange={() => setFilters({ ...filters, amenities: toggleIn(filters.amenities, 'Private pool') })} />
-        </>,
-        'f1',
-      )}
 
       {fieldset(
         'Price for whole package',
@@ -98,79 +89,36 @@ export default function FiltersPanel({ filters, setFilters, sort, setSort, resul
         'f3',
       )}
 
-      {fieldset(
-        'Guest rating',
-        [
-          { v: 0, l: 'Any rating' },
-          { v: 8, l: '8+ Very good' },
-          { v: 8.5, l: '8.5+ Excellent' },
-          { v: 9, l: '9+ Exceptional' },
-        ].map((o) => (
-          <Check key={o.v} label={o.l} checked={filters.minRating === o.v} onChange={() => setFilters({ ...filters, minRating: o.v })} />
-        )),
-        'f4',
-      )}
+      {mealCodes.length > 0 &&
+        fieldset(
+          'Meal plan',
+          mealCodes.map((code) => (
+            <Check
+              key={code}
+              label={MEAL_PLAN_MAP[code]?.name ?? code}
+              checked={filters.mealPlans.includes(code)}
+              onChange={() => setFilters({ ...filters, mealPlans: toggleIn(filters.mealPlans, code) })}
+            />
+          )),
+          'f6',
+        )}
 
-      {fieldset(
-        'Transfer from Malé',
-        (['speedboat', 'seaplane', 'domestic'] as TransferType[]).map((t) => (
-          <Check
-            key={t}
-            label={t === 'speedboat' ? 'Speedboat (any time)' : t === 'seaplane' ? 'Seaplane (daylight only)' : 'Domestic flight + boat'}
-            checked={filters.transfers.includes(t)}
-            onChange={() => setFilters({ ...filters, transfers: toggleIn(filters.transfers, t) })}
-          />
-        )),
-        'f5',
-      )}
-
-      {fieldset(
-        'Meal plan',
-        MEAL_PLANS.map((m) => (
-          <Check
-            key={m.code}
-            label={m.name}
-            checked={filters.mealPlans.includes(m.code as MealPlanCode)}
-            onChange={() => setFilters({ ...filters, mealPlans: toggleIn(filters.mealPlans, m.code as MealPlanCode) })}
-          />
-        )),
-        'f6',
-      )}
-
-      {fieldset(
-        'Villa view',
-        (['any', 'beach', 'overwater', 'garden'] as (VillaView | 'any')[]).map((v) => (
-          <Check
-            key={v}
-            label={v === 'any' ? 'Any view' : v === 'overwater' ? 'Overwater' : v === 'beach' ? 'Beachfront' : 'Garden'}
-            checked={filters.view === v}
-            onChange={() => setFilters({ ...filters, view: v })}
-          />
-        )),
-        'f7',
-      )}
-
-      {fieldset(
-        'Amenities',
-        AMENITIES.map((a) => (
-          <Check key={a} label={a} checked={filters.amenities.includes(a)} onChange={() => setFilters({ ...filters, amenities: toggleIn(filters.amenities, a) })} />
-        )),
-        'f8',
-      )}
+      {amenityOptions.length > 0 &&
+        fieldset(
+          'Amenities',
+          amenityOptions.slice(0, 12).map((a) => (
+            <Check
+              key={a}
+              label={a}
+              checked={filters.amenities.includes(a)}
+              onChange={() => setFilters({ ...filters, amenities: toggleIn(filters.amenities, a) })}
+            />
+          )),
+          'f8',
+        )}
 
       <button
-        onClick={() =>
-          setFilters({
-            priceMax: 20000,
-            minStars: 0,
-            minRating: 0,
-            transfers: [],
-            mealPlans: [],
-            amenities: [],
-            view: 'any',
-            freeCancellation: false,
-          })
-        }
+        onClick={() => setFilters(defaultFilters)}
         className="mt-4 w-full rounded-xl border border-sand-300 py-2 text-sm font-semibold text-ink-700 hover:bg-sand-50"
       >
         Clear all

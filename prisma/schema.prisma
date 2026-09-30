@@ -16,6 +16,8 @@ datasource db {
 model Profile {
   id        String   @id @db.Uuid
   fullName  String   @default("") @map("full_name")
+  /// 'member' | 'admin' — admins can write hotel_content (CMS).
+  role      String   @default("member")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   @@map("profiles")
@@ -38,6 +40,10 @@ model Booking {
   resortId        String   @map("resort_id")
   villaId         String   @map("villa_id")
   mealPlan        String   @map("meal_plan")
+  /// Live-rate identity (portal slug + display names); null on legacy rows.
+  hotelSlug       String?  @map("hotel_slug")
+  hotelName       String?  @map("hotel_name")
+  roomName        String?  @map("room_name")
   checkIn         DateTime @map("check_in") @db.Date
   checkOut        DateTime @map("check_out") @db.Date
   adults          Int
@@ -61,8 +67,59 @@ model Booking {
 model SavedStay {
   userId     String   @map("user_id") @db.Uuid
   resortSlug String   @map("resort_slug")
+  /// Snapshot so Trips can render saved stays without a rates lookup.
+  hotelId    String?  @map("hotel_id")
+  hotelName  String?  @map("hotel_name")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   @@id([userId, resortSlug])
   @@map("saved_stays")
+}
+
+/// Admin-managed hotel content (CMS), mapped to the rates API by hotel_id.
+/// Public read; writes restricted to profiles.role = 'admin' via RLS.
+model HotelContent {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId            String    @unique @map("hotel_id")
+  portalSlug         String?   @map("portal_slug")
+  name               String
+  description        String?   @db.Text
+  atoll              String?
+  stars              Int?
+  photos             String[]  @default([])
+  amenities          String[]  @default([])
+  website            String?
+  lat                Float?
+  lng                Float?
+  checkInFrom        String?   @map("check_in_from")
+  checkInNotes       String?   @map("check_in_notes") @db.Text
+  checkOutUntil      String?   @map("check_out_until")
+  cancellation       String?   @db.Text
+  childPolicies      String?   @db.Text @map("child_policies")
+  cotExtraBed        String?   @db.Text @map("cot_extra_bed")
+  petsAllowed        Boolean?  @map("pets_allowed")
+  petsNotes          String?   @db.Text @map("pets_notes")
+  paymentMethods     String[]  @default([]) @map("payment_methods")
+  finePrint          String?   @db.Text @map("fine_print")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([hotelId], map: "hotel_content_hotel_idx")
+  @@map("hotel_content")
+}
+
+/// Guest reviews keyed to the rates API hotel_id. Public read; authenticated
+/// users write their own (one per hotel); admins may remove.
+model Review {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId   String   @map("hotel_id")
+  userId    String   @map("user_id") @db.Uuid
+  rating    Int
+  title     String?
+  body      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([hotelId, userId], map: "reviews_hotel_user_key")
+  @@index([hotelId, createdAt(sort: Desc)], map: "reviews_hotel_idx")
+  @@map("reviews")
 }

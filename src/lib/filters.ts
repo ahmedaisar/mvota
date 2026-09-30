@@ -1,14 +1,24 @@
-import type { Filters, Resort } from '../types';
-import { TRANSFER_BY_ATOLL } from './pricing';
+import type { Filters, MealPlanCode } from '../types';
+import type { RateResult } from './results';
+import { toMealCode } from '../services/availability';
 
-export function matchesFilters(resort: Resort, f: Filters, price: number): boolean {
-  if (price > f.priceMax) return false;
-  if (resort.stars < f.minStars) return false;
-  if (resort.rating < f.minRating) return false;
-  if (f.freeCancellation && !resort.mealPlans.some((m) => m === 'BB' || m === 'HB')) return false;
-  if (f.transfers.length && !f.transfers.includes(TRANSFER_BY_ATOLL[resort.atollId])) return false;
-  if (f.mealPlans.length && !f.mealPlans.some((m) => resort.mealPlans.includes(m))) return false;
-  if (f.amenities.length && !f.amenities.every((a) => resort.amenities.includes(a))) return false;
-  if (f.view !== 'any' && !resort.villas.some((v) => v.view === f.view)) return false;
+export function matchesResult(result: RateResult, f: Filters): boolean {
+  if (result.total > f.priceMax) return false;
+  if (f.minStars && (result.row.star_rating ?? 0) < f.minStars) return false;
+  if (f.mealPlans.length) {
+    const code = toMealCode(result.row.meal_plan);
+    if (!f.mealPlans.includes(code)) return false;
+  }
+  if (f.amenities.length) {
+    const have = result.content?.amenities ?? [];
+    if (!f.amenities.every((a) => have.some((h) => h.toLowerCase() === a.toLowerCase()))) return false;
+  }
   return true;
+}
+
+/** Portal meal codes seen in a result set, normalized for filter chips. */
+export function distinctMealCodes(rows: { meal_plan: string }[]): MealPlanCode[] {
+  const set = new Set<MealPlanCode>();
+  for (const r of rows) set.add(toMealCode(r.meal_plan));
+  return [...set].sort();
 }

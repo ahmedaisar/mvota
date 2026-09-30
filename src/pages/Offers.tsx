@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import ResortCard from '../components/ResortCard';
-import { RESORTS } from '../data/resorts';
+import { useLiveResults } from '../hooks/useLiveResults';
 
 const deals = [
   {
@@ -28,11 +28,10 @@ const deals = [
 ];
 
 export default function Offers() {
-  const { member, search, openAuth } = useApp();
+  const { member, search, openAuth, currency } = useApp();
+  const { results, status, error, retry } = useLiveResults();
   const guests = search.adults + search.children;
-  const picks = [...RESORTS]
-    .sort((a, b) => a.villas[0].basePrice - b.villas[0].basePrice)
-    .slice(0, 3);
+  const picks = [...results].sort((a, b) => a.total - b.total).slice(0, 3);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -97,12 +96,31 @@ export default function Offers() {
           </Link>
         </div>
         <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {picks.map((r) => (
-            <ResortCard key={r.id} resort={r} />
-          ))}
+          {status === 'loading' &&
+            Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="animate-pulse rounded-2xl border border-sand-200 bg-white p-4">
+                <div className="h-40 rounded-xl bg-sand-100" />
+                <div className="mt-4 h-4 w-2/3 rounded bg-sand-100" />
+              </div>
+            ))}
+          {status === 'error' && (
+            <div className="rounded-2xl border border-coral-400 bg-coral-500/10 p-8 text-center sm:col-span-2 lg:col-span-3">
+              <p className="text-sm font-semibold text-coral-600">{error ?? 'Live rates are unavailable.'}</p>
+              <button onClick={retry} className="mt-3 rounded-xl bg-ink-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-lagoon-700">
+                Try again
+              </button>
+            </div>
+          )}
+          {status === 'ready' && picks.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-sand-300 bg-white p-8 text-center text-sm text-ink-500 sm:col-span-2 lg:col-span-3">
+              No availability for these dates — shift your stay to see deals.
+            </div>
+          )}
+          {status === 'ready' && picks.map((r) => <ResortCard key={r.row.hotel_slug} result={r} />)}
         </div>
         <p className="mt-4 text-xs text-ink-500">
-          Package totals shown for {guests} guest{guests > 1 ? 's' : ''} · taxes and transfers included.
+          Package totals shown for {guests} guest{guests > 1 ? 's' : ''} · taxes included, transfers priced per hotel ·
+          shown in {currency}
         </p>
       </section>
     </div>

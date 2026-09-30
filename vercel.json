@@ -1,3 +1,6 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/rates/:path*", "destination": "https://lgm-express.vercel.app/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

@@ -7,6 +7,7 @@ import Checkout from './pages/Checkout';
 import Confirmation from './pages/Confirmation';
 import Trips from './pages/Trips';
 import Offers from './pages/Offers';
+import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/confirmation/:code" element={<Confirmation />} />
         <Route path="/trips" element={<Trips />} />
         <Route path="/offers" element={<Offers />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

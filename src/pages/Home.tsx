@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import SearchStrip from '../components/SearchStrip';
 import ResortCard from '../components/ResortCard';
-import { RESORTS, MEAL_PLANS } from '../data/resorts';
-import { buildQuote, fromPrice } from '../lib/pricing';
+import { MEAL_PLANS } from '../data/resorts';
+import { buildLiveQuote } from '../lib/pricing';
 import { money } from '../lib/format';
 import { useApp } from '../store/AppContext';
+import { useLiveResults } from '../hooks/useLiveResults';
 
 const valueProps = [
   {
@@ -14,7 +15,7 @@ const valueProps = [
   },
   {
     title: 'Transfers priced upfront',
-    body: 'Seaplane, speedboat or domestic flight — a fixed round-trip per person, calculated with your quote.',
+    body: 'Seaplane, speedboat or domestic flight — pick your legs on the hotel page and they join the quote.',
     icon: 'M2 16h20M12 5v8M5 12l7-4 7 4M7 20h2m6 0h2',
   },
   {
@@ -25,33 +26,33 @@ const valueProps = [
 ];
 
 export default function Home() {
-  const { member, session, search, openAuth } = useApp();
-  const featured = RESORTS.filter((r) => r.promoted);
-  const guests = search.adults + search.children;
+  const { member, session, search, openAuth, currency } = useApp();
+  const { results, status, error, retry } = useLiveResults();
 
-  const sampleResort = RESORTS.find((r) => r.slug === 'azure-shore-north-male')!;
-  const sampleVilla = sampleResort.villas.find((v) => v.name === 'Lagoon Water Villa')!;
-  const sampleQuote = buildQuote({
-    resort: sampleResort,
-    villa: sampleVilla,
-    mealPlan: 'AI',
-    checkIn: search.checkIn,
-    checkOut: search.checkOut,
-    adults: 2,
-    children: 0,
-    member: !!session,
-  });
+  const picks = [...results].sort((a, b) => a.total - b.total).slice(0, 6);
+  const featured = picks[0];
 
-  const sampleRows: [string, string, boolean?][] = [
-    ['Villa (seasonal)', money(sampleQuote.roomSubtotal)],
-    ['Meal plan uplift', money(sampleQuote.mealUplift)],
-    ['5th night free', `−${money(sampleQuote.longStayDiscount)}`, sampleQuote.longStayDiscount > 0],
-    ['Member −10%', `−${money(sampleQuote.memberDiscount)}`, sampleQuote.memberDiscount > 0],
-    ['Service charge 10%', money(sampleQuote.serviceCharge)],
-    ['TGST 17%', money(sampleQuote.tgst)],
-    ['Green tax ×2 guests', money(sampleQuote.greenTax)],
-    ['Speedboat RT ×2', money(sampleQuote.transferTotal)],
-  ];
+  const sampleQuote = featured
+    ? buildLiveQuote({
+        netPrice: featured.row.net_price,
+        checkIn: search.checkIn,
+        checkOut: search.checkOut,
+        adults: 2,
+        children: 0,
+        member: !!session,
+      })
+    : null;
+
+  const sampleRows: [string, string, boolean?][] = sampleQuote
+    ? [
+        ['Room (live rate)', money(sampleQuote.roomSubtotal, currency)],
+        ['5th night free', `−${money(sampleQuote.longStayDiscount, currency)}`, sampleQuote.longStayDiscount > 0],
+        ['Member −10%', `−${money(sampleQuote.memberDiscount, currency)}`, sampleQuote.memberDiscount > 0],
+        ['Service charge 10%', money(sampleQuote.serviceCharge, currency)],
+        ['TGST 17%', money(sampleQuote.tgst, currency)],
+        ['Green tax ×2 guests', money(sampleQuote.greenTax, currency)],
+      ]
+    : [];
 
   return (
     <div>
@@ -117,8 +118,21 @@ export default function Home() {
           <div className="mt-8 max-w-5xl">
             <SearchStrip />
             <p className="mt-3 text-xs font-semibold text-ink-100/90">
-              Try: {featured[0].name} from {money(fromPrice(featured[0], !!session, search.checkIn, search.checkOut, guests))} — all
-              taxes and transfer included
+              {status === 'loading' && 'Fetching live rates for your dates…'}
+              {status === 'error' && (
+                <button onClick={retry} className="underline hover:text-white">
+                  Live rates unavailable — tap to retry
+                </button>
+              )}
+              {status === 'ready' &&
+                (featured ? (
+                  <>
+                    Try: {featured.row.hotel_name} from {money(featured.total, currency)} — all taxes included, transfer
+                    priced on the hotel page
+                  </>
+                ) : (
+                  'No availability for these dates — adjust them in the strip above.'
+                ))}
             </p>
           </div>
         </div>
@@ -143,17 +157,36 @@ export default function Home() {
       <section className="mx-auto mt-14 max-w-7xl px-4 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-3xl font-semibold text-ink-950">Featured islands</h2>
-            <p className="mt-1 text-ink-500">Handpicked stays with the cleanest reviews and best house reefs.</p>
+            <h2 className="text-3xl font-semibold text-ink-950">Available islands right now</h2>
+            <p className="mt-1 text-ink-500">Live rates for your dates — cheapest packages first.</p>
           </div>
           <Link to="/search" className="text-sm font-bold text-lagoon-700 hover:text-lagoon-600">
-            See all {RESORTS.length} stays →
+            See all stays →
           </Link>
         </div>
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {[...featured, ...RESORTS.filter((r) => !r.promoted).slice(0, 3)].slice(0, 6).map((r) => (
-            <ResortCard key={r.id} resort={r} />
-          ))}
+          {status === 'loading' &&
+            Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="animate-pulse rounded-2xl border border-sand-200 bg-white p-4">
+                <div className="h-40 rounded-xl bg-sand-100" />
+                <div className="mt-4 h-4 w-2/3 rounded bg-sand-100" />
+                <div className="mt-2 h-3 w-1/3 rounded bg-sand-100" />
+              </div>
+            ))}
+          {status === 'error' && (
+            <div className="rounded-2xl border border-coral-400 bg-coral-500/10 p-8 text-center sm:col-span-2 lg:col-span-3">
+              <p className="text-sm font-semibold text-coral-600">{error ?? 'Live rates are unavailable.'}</p>
+              <button onClick={retry} className="mt-3 rounded-xl bg-ink-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-lagoon-700">
+                Try again
+              </button>
+            </div>
+          )}
+          {status === 'ready' && picks.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-sand-300 bg-white p-8 text-center text-sm text-ink-500 sm:col-span-2 lg:col-span-3">
+              No availability for these dates — try shifting your stay.
+            </div>
+          )}
+          {status === 'ready' && picks.map((r) => <ResortCard key={r.row.hotel_slug} result={r} />)}
         </div>
       </section>
 
@@ -164,16 +197,15 @@ export default function Home() {
               <h2 className="text-3xl font-semibold">How the Maldives math works</h2>
               <p className="mt-3 max-w-lg leading-relaxed text-ink-100">
                 Most OTAs hide the tax stack until the last screen. Here is every line item we compute — the same engine
-                prices every card, villa page and checkout.
+                prices every card, hotel page and checkout.
               </p>
               <div className="mt-6 space-y-3">
                 {[
-                  ['Base villa + meal plan', 'nightly rate × nights, seasonal multiplier applied'],
-                  ['Member discount', '−10% for signed-in members (One Key style)'],
-                  ['Service charge', '+10% of room & board'],
+                  ['Live room rate', 'portal rate for your dates, member −10% applied first'],
+                  ['Service charge', '+10% of the room'],
                   ['TGST (Goods & Services Tax)', '+17% of (room + service charge)'],
-                  ['Green tax', '$6 or $12 per person per night'],
-                  ['Round-trip transfer', 'per person: speedboat / seaplane / domestic'],
+                  ['Green tax', '$6 per person per night'],
+                  ['Round-trip transfer', 'your choice of legs, priced on the hotel page'],
                 ].map(([k, v]) => (
                   <div key={k} className="flex items-start gap-3 border-b border-ink-700 pb-3 text-sm">
                     <span className="mt-1 size-2 shrink-0 rounded-full bg-lagoon-400" />
@@ -191,27 +223,35 @@ export default function Home() {
 
             <div className="rounded-2xl bg-ink-950 p-6 ring-1 ring-ink-700">
               <h3 className="text-xl font-semibold">
-                Live quote: {sampleQuote.nights} nights, 2 adults
+                {sampleQuote ? `Live quote: ${sampleQuote.nights} nights, 2 adults` : 'Live quote'}
               </h3>
               <p className="mt-1 text-sm text-ink-300">
-                Azure Shore · Lagoon Water Villa · All Inclusive · speedboat
+                {featured ? `${featured.row.hotel_name} · ${featured.row.room_type} · ${featured.row.meal_plan}` : 'Fetch your dates to price a stay'}
               </p>
-              <table className="mt-4 w-full text-sm">
-                <tbody className="[&_td]:py-2 [&_td]:border-b [&_td]:border-ink-800">
-                  {sampleRows.filter(([, , show]) => show !== false).map(([k, v]) => (
-                    <tr key={k}>
-                      <td className="text-ink-300">{k}</td>
-                      <td className="text-right font-semibold tabular-nums">{v}</td>
+              {sampleQuote ? (
+                <table className="mt-4 w-full text-sm">
+                  <tbody className="[&_td]:py-2 [&_td]:border-b [&_td]:border-ink-800">
+                    {sampleRows.filter(([, , show]) => show !== false).map(([k, v]) => (
+                      <tr key={k}>
+                        <td className="text-ink-300">{k}</td>
+                        <td className="text-right font-semibold tabular-nums">{v}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td className="pt-4 text-base font-bold">Total</td>
+                      <td className="pt-4 text-right text-xl font-bold text-lagoon-300 tabular-nums">
+                        {money(sampleQuote.total, currency)}
+                      </td>
                     </tr>
-                  ))}
-                  <tr>
-                    <td className="pt-4 text-base font-bold">Total</td>
-                    <td className="pt-4 text-right text-xl font-bold text-lagoon-300 tabular-nums">
-                      {money(sampleQuote.total)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              ) : (
+                <div className="mt-4 animate-pulse space-y-3">
+                  <div className="h-4 rounded bg-ink-800" />
+                  <div className="h-4 rounded bg-ink-800" />
+                  <div className="h-4 rounded bg-ink-800" />
+                </div>
+              )}
               <p className="mt-3 text-xs text-ink-500">
                 Priced by the same engine as search and checkout — it recomputes with your dates and guests.
               </p>

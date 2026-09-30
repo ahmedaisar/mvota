@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useApp, type AuthReason } from '../store/AppContext';
+import CompareBar from './CompareBar';
+import CurrencyPicker from './CurrencyPicker';
 
 const navLink = ({ isActive }: { isActive: boolean }) =>
   `text-sm font-semibold transition-colors ${isActive ? 'text-lagoon-600' : 'text-ink-700 hover:text-lagoon-600'}`;
@@ -178,7 +180,7 @@ function AuthModal({ reason, onClose }: { reason: AuthReason; onClose: () => voi
 }
 
 export default function Layout() {
-  const { member, signOut, rewards, saved, bookings, authModal, openAuth, closeAuth } = useApp();
+  const { member, signOut, rewards, saved, bookings, authModal, openAuth, closeAuth, role } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -203,6 +205,12 @@ export default function Layout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            <CurrencyPicker />
+            {role === 'admin' && (
+              <NavLink to="/admin" className={navLink}>
+                CMS
+              </NavLink>
+            )}
             <Link to="/trips" className="relative hidden text-ink-700 hover:text-lagoon-600 sm:block" aria-label={`Saved and trips: ${saved.length} saved`}>
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M6 4h12a1 1 0 0 1 1 1v16l-7-4-7 4V5a1 1 0 0 1 1-1z" />
@@ -304,6 +312,7 @@ export default function Layout() {
         </div>
       </footer>
 
+      <CompareBar />
       {authModal.open && <AuthModal reason={authModal.reason} onClose={closeAuth} />}
     </div>
   );

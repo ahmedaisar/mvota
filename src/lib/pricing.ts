@@ -1,5 +1,4 @@
-import type { MealPlanCode, PriceQuote, Resort, Villa } from '../types';
-import { MEAL_PLAN_MAP, TRANSFER_RATE } from '../data/resorts';
+import type { PriceQuote } from '../types';
 
 const TGST_RATE = 0.17;
 const SERVICE_CHARGE_RATE = 0.1;
@@ -7,17 +6,6 @@ const MEMBER_DISCOUNT = 0.1;
 export const STAMP_REWARD_NIGHTS = 10;
 export const REWARD_CREDIT = 100;
 export const ISLAND_CASH_RATE = 0.02;
-
-type Season = { label: string; multiplier: number };
-
-function seasonFor(checkIn: string): Season {
-  const d = new Date(checkIn + 'T00:00:00');
-  const md = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  if (md >= '12-22' || md <= '01-05') return { label: 'Festive', multiplier: 1.45 };
-  if ((md >= '01-06' && md <= '04-15') || (md >= '11-01' && md <= '12-21')) return { label: 'High season', multiplier: 1.18 };
-  if (md >= '05-01' && md <= '09-30') return { label: 'Low season', multiplier: 0.88 };
-  return { label: 'Shoulder', multiplier: 1 };
-}
 
 export function nightsBetween(checkIn: string, checkOut: string): number {
   const a = new Date(checkIn + 'T00:00:00').getTime();
@@ -27,95 +15,6 @@ export function nightsBetween(checkIn: string, checkOut: string): number {
 
 export function isMemberPriceEligible(member: boolean): boolean {
   return member;
-}
-
-/**
- * Maldives package quote (see REVERSE_ENGINEERING_REPORT.md rule-maldives-tax-stack):
- * taxable = room + meal plan uplift (member discount applied first)
- * service charge 10% of taxable
- * TGST 17% of (taxable + service charge)
- * Green Tax flat per person per night ($6 <50 rooms, $12 >=50)
- * transfer round-trip per person
- */
-export function buildQuote(opts: {
-  resort: Resort;
-  villa: Villa;
-  mealPlan: MealPlanCode;
-  checkIn: string;
-  checkOut: string;
-  adults: number;
-  children: number;
-  member: boolean;
-  islandCashApplied?: number;
-}): PriceQuote {
-  const { resort, villa, mealPlan, checkIn, checkOut, adults, children, member } = opts;
-  const nights = nightsBetween(checkIn, checkOut);
-  const guests = adults + children;
-  const season = seasonFor(checkIn);
-
-  const roomSubtotal = Math.round(villa.basePrice * season.multiplier * nights);
-  const mealUplift = Math.round(MEAL_PLAN_MAP[mealPlan].ppn * guests * nights);
-  const longStayDiscount = nights >= 5 ? Math.round(roomSubtotal / nights) : 0;
-  const gross = roomSubtotal + mealUplift - longStayDiscount;
-  const memberDiscount = member && isMemberPriceEligible(member) ? Math.round(gross * MEMBER_DISCOUNT) : 0;
-  const taxable = gross - memberDiscount;
-  const serviceCharge = Math.round(taxable * SERVICE_CHARGE_RATE);
-  const tgst = Math.round((taxable + serviceCharge) * TGST_RATE);
-  const greenTaxPerPersonNight = resort.roomCount >= 50 ? 12 : 6;
-  const greenTax = greenTaxPerPersonNight * guests * nights;
-  const transfer = resort ? TRANSFER_RATE[transferTypeOf(resort)] * guests : 0;
-  const cashApplied = Math.max(0, Math.min(opts.islandCashApplied ?? 0, taxable));
-  const total = taxable + serviceCharge + tgst + greenTax + transfer - cashApplied;
-
-  return {
-    nights,
-    roomSubtotal,
-    mealUplift,
-    longStayDiscount,
-    memberDiscount,
-    serviceCharge,
-    tgst,
-    greenTax,
-    transferTotal: transfer,
-    total: Math.max(0, total),
-    perNight: nights ? Math.round(total / nights) : 0,
-    perPersonNight: nights && guests ? Math.round(total / (nights * guests)) : 0,
-  };
-}
-
-export function transferTypeOf(resort: Resort): 'speedboat' | 'seaplane' | 'domestic' {
-  return TRANSFER_BY_ATOLL[resort.atollId];
-}
-
-/** Transfer type is fixed by atoll geography (EVID-021) — users cannot choose it. */
-export const TRANSFER_BY_ATOLL: Record<string, 'speedboat' | 'seaplane' | 'domestic'> = {
-  'north-male': 'speedboat',
-  'south-male': 'speedboat',
-  baa: 'seaplane',
-  raa: 'seaplane',
-  ari: 'seaplane',
-  lhaviyani: 'seaplane',
-  noonu: 'seaplane',
-  vaavu: 'domestic',
-  laamu: 'domestic',
-  gaafu: 'domestic',
-};
-
-/** Cheapest villa drives the search card price (Hotels.com-style "from" pricing). */
-export function fromPrice(resort: Resort, member: boolean, checkIn: string, checkOut: string, guests: number): number {
-  const cheapest = [...resort.villas].sort((a, b) => a.basePrice - b.basePrice)[0];
-  const bestPlan: MealPlanCode = resort.mealPlans.includes('BB') ? 'BB' : resort.mealPlans[0];
-  const q = buildQuote({
-    resort,
-    villa: cheapest,
-    mealPlan: bestPlan,
-    checkIn,
-    checkOut,
-    adults: Math.max(1, guests),
-    children: 0,
-    member,
-  });
-  return q.total;
 }
 
 /** Arrival cutoff for seaplane transfers: flights stop at 16:00 (EVID-021). */
@@ -130,4 +29,70 @@ export function seaplaneArrivalWarning(arrivalTime: string, transfer: string): s
     return 'Seaplanes do not fly before 06:00. The resort lounge at Velana airport opens for early arrivals, but the transfer departs after sunrise.';
   }
   return null;
+}
+
+/**
+ * Live-rate quote: the portal price already includes the room, meal plan and
+ * seasonal demand (and our supplier markup), so no season/meal uplift math is
+ * applied here. We stack the Maldives tax model + member/long-stay discounts
+ * on top of the live net price. Green tax assumes a small property ($6/person/
+ * night) until CMS supplies a room count.
+ */
+export function buildLiveQuote(opts: {
+  netPrice: number;
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  children: number;
+  member: boolean;
+  /** Selected round-trip transfer total for all guests (portal options). */
+  transferTotal?: number;
+  islandCashApplied?: number;
+}): PriceQuote {
+  const nights = nightsBetween(opts.checkIn, opts.checkOut);
+  const guests = opts.adults + opts.children;
+  const roomSubtotal = Math.max(0, Math.round(opts.netPrice));
+  const longStayDiscount = nights >= 5 ? Math.round(roomSubtotal / nights) : 0;
+  const gross = roomSubtotal - longStayDiscount;
+  const memberDiscount = opts.member ? Math.round(gross * MEMBER_DISCOUNT) : 0;
+  const taxable = gross - memberDiscount;
+  const serviceCharge = Math.round(taxable * SERVICE_CHARGE_RATE);
+  const tgst = Math.round((taxable + serviceCharge) * TGST_RATE);
+  const greenTax = 6 * guests * nights;
+  const transfer = Math.max(0, Math.round(opts.transferTotal ?? 0));
+  const cashApplied = Math.max(0, Math.min(opts.islandCashApplied ?? 0, taxable));
+  const total = taxable + serviceCharge + tgst + greenTax + transfer - cashApplied;
+
+  return {
+    nights,
+    roomSubtotal,
+    mealUplift: 0,
+    longStayDiscount,
+    memberDiscount,
+    serviceCharge,
+    tgst,
+    greenTax,
+    transferTotal: transfer,
+    total: Math.max(0, total),
+    perNight: nights ? Math.round(total / nights) : 0,
+    perPersonNight: nights && guests ? Math.round(total / (nights * guests)) : 0,
+  };
+}
+
+/** Search-card total for a live rate: taxes & fees in, transfer not yet chosen. */
+export function liveCardTotal(
+  netPrice: number,
+  member: boolean,
+  checkIn: string,
+  checkOut: string,
+  guests: number,
+): number {
+  return buildLiveQuote({
+    netPrice,
+    checkIn,
+    checkOut,
+    adults: Math.max(1, guests),
+    children: 0,
+    member,
+  }).total;
 }

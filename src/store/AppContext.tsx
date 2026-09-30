@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import type { Booking, Member, Rewards, SearchParams } from '../types';
+import type { Booking, CompareItem, Member, Rewards, SavedEntry, SearchParams } from '../types';
 import { addDays, today } from '../lib/format';
 import { REWARD_CREDIT, STAMP_REWARD_NIGHTS } from '../lib/pricing';
 import { getDb, supabaseConfigError } from '../lib/supabase';
@@ -9,6 +9,7 @@ import * as rewardsApi from '../services/rewards';
 import * as savedApi from '../services/saved';
 
 const SEARCH_KEY = 'atoll.search';
+const CURRENCY_KEY = 'atoll.currency';
 const LEGACY_KEYS = ['atoll.member', 'atoll.bookings', 'atoll.saved', 'atoll.rewards'];
 
 export type AuthReason = 'header' | 'trips' | 'checkout' | 'save';
@@ -78,8 +79,8 @@ interface AppStore {
   bookings: Booking[];
   addBooking: (b: Booking) => Promise<void>;
   cancelBooking: (id: string) => Promise<void>;
-  saved: string[];
-  toggleSaved: (slug: string) => Promise<void>;
+  saved: SavedEntry[];
+  toggleSaved: (slug: string, meta?: { hotelId?: string; name?: string }) => Promise<void>;
   isSaved: (slug: string) => boolean;
   rewards: Rewards;
   redeemIslandCash: (amount: number) => Promise<void>;
@@ -87,6 +88,15 @@ interface AppStore {
   dataLoading: boolean;
   search: SearchParams;
   setSearch: (s: SearchParams) => void;
+  /** 'member' | 'admin' — drives the CMS admin surface. */
+  role: string | null;
+  /** Display currency (USD-based indicative FX). */
+  currency: string;
+  setCurrency: (c: string) => void;
+  /** Compare set (max 3). */
+  compare: CompareItem[];
+  toggleCompare: (item: CompareItem) => void;
+  clearCompare: () => void;
 }
 
 const AppContext = createContext<AppStore | null>(null);
@@ -95,11 +105,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [saved, setSaved] = useState<string[]>([]);
+  const [saved, setSaved] = useState<SavedEntry[]>([]);
   const [rewards, setRewards] = useState<Rewards>(zeroRewards);
   const [dataLoading, setDataLoading] = useState(false);
   const [authModal, setAuthModal] = useState<{ open: boolean; reason: AuthReason }>({ open: false, reason: 'header' });
   const [search, setSearchState] = useState<SearchParams>(() => load<SearchParams>(SEARCH_KEY, defaultSearch));
+  const [role, setRole] = useState<string | null>(null);
+  const [currency, setCurrencyState] = useState<string>(() => localStorage.getItem(CURRENCY_KEY) || 'USD');
+  const [compare, setCompare] = useState<CompareItem[]>([]);
 
   const sessionRef = useRef<Session | null>(null);
   const rewardsRef = useRef<Rewards>(zeroRewards);
@@ -135,13 +148,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         rewardState = { islandCash, pendingIslandCash, stamps };
         await rewardsApi.setRewards(user.id, rewardState);
       }
-      const [bookingRows, savedRows] = await Promise.all([
+      const [bookingRows, savedRows, profileRow] = await Promise.all([
         bookingsApi.listBookings(user.id),
         savedApi.listSaved(user.id),
+        getDb()
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle()
+          .then(({ data, error }) => {
+            if (error) throw new Error(error.message);
+            return (data as { role?: string } | null)?.role ?? 'member';
+          }),
       ]);
       setRewards(rewardState);
       setBookings(bookingRows);
       setSaved(savedRows);
+      setRole(profileRow);
       loadedFor.current = user.id;
     } catch (e) {
       console.error('Failed to load account data', e);
@@ -166,6 +189,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setBookings([]);
         setSaved([]);
         setRewards(zeroRewards);
+        setRole(null);
       }
     });
     return () => subscription.unsubscribe();
@@ -231,24 +255,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [bookings]);
 
   const toggleSaved = useCallback(
-    async (slug: string) => {
+    async (slug: string, meta?: { hotelId?: string; name?: string }) => {
       const user = sessionRef.current?.user;
       if (!user) {
         openAuth('save');
         return;
       }
-      const isCurrentlySaved = saved.includes(slug);
-      setSaved((prev) => (isCurrentlySaved ? prev.filter((s) => s !== slug) : [slug, ...prev]));
+      const isCurrentlySaved = saved.some((s) => s.slug === slug);
+      setSaved((prev) =>
+        isCurrentlySaved
+          ? prev.filter((s) => s.slug !== slug)
+          : [{ slug, hotelId: meta?.hotelId ?? null, name: meta?.name ?? null }, ...prev],
+      );
       try {
         if (isCurrentlySaved) await savedApi.unsaveStay(user.id, slug);
-        else await savedApi.saveStay(user.id, slug);
+        else await savedApi.saveStay(user.id, slug, meta);
       } catch (e) {
         console.error('Failed to update saved stays', e);
-        setSaved((prev) => (isCurrentlySaved ? [slug, ...prev] : prev.filter((s) => s !== slug)));
+        setSaved((prev) => {
+          if (isCurrentlySaved) {
+            // Delete failed — restore the entry.
+            return prev.some((s) => s.slug === slug)
+              ? prev
+              : [{ slug, hotelId: meta?.hotelId ?? null, name: meta?.name ?? null }, ...prev];
+          }
+          // Insert failed — drop the optimistic entry.
+          return prev.filter((s) => s.slug !== slug);
+        });
       }
     },
     [saved, openAuth],
   );
+
+  const toggleCompare = useCallback((item: CompareItem) => {
+    setCompare((prev) => {
+      if (prev.some((c) => c.slug === item.slug)) return prev.filter((c) => c.slug !== item.slug);
+      if (prev.length >= 3) return prev; // max 3 — ignore additions past the cap
+      return [...prev, item];
+    });
+  }, []);
+
+  const clearCompare = useCallback(() => setCompare([]), []);
+
+  const setCurrency = useCallback((c: string) => {
+    setCurrencyState(c);
+    try {
+      localStorage.setItem(CURRENCY_KEY, c);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
 
   const redeemIslandCash = useCallback(async (amount: number) => {
     const user = sessionRef.current?.user;
@@ -277,17 +333,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelBooking,
       saved,
       toggleSaved,
-      isSaved: (slug: string) => saved.includes(slug),
+      isSaved: (slug: string) => saved.some((s) => s.slug === slug),
       rewards,
       redeemIslandCash,
       refresh,
       dataLoading,
       search,
       setSearch: setSearchState,
+      role,
+      currency,
+      setCurrency,
+      compare,
+      toggleCompare,
+      clearCompare,
     }),
     [
       authReady, session, member, signIn, register, signOut, authModal, openAuth, closeAuth,
-      bookings, addBooking, cancelBooking, saved, toggleSaved, rewards, redeemIslandCash, refresh, dataLoading, search,
+      bookings, addBooking, cancelBooking, saved, toggleSaved, rewards, redeemIslandCash, refresh, dataLoading,
+      search, role, currency, setCurrency, compare, toggleCompare, clearCompare,
     ],
   );
 
