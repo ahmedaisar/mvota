@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Scene from '../components/Scene';
 import { ATOLL_MAP, MEAL_PLAN_MAP, RESORT_BY_SLUG, TRANSFER_LABEL } from '../data/resorts';
-import { TRANSFER_BY_ATOLL, buildQuote, seaplaneArrivalWarning } from '../lib/pricing';
+import { ISLAND_CASH_RATE, TRANSFER_BY_ATOLL, buildQuote, seaplaneArrivalWarning } from '../lib/pricing';
 import { bookingCode, longDate, money } from '../lib/format';
 import { useApp } from '../store/AppContext';
 import type { Booking, Traveler } from '../types';
@@ -23,7 +23,7 @@ export default function Checkout() {
   const planParam = params.get('plan');
   const villa = resort?.villas.find((v) => v.id === villaId);
 
-  const { search, member, rewards, addBooking, redeemIslandCash } = useApp();
+  const { search, member, session, rewards, addBooking, redeemIslandCash, openAuth } = useApp();
   const navigate = useNavigate();
 
   const plan = planParam && resort?.mealPlans.includes(planParam as keyof typeof MEAL_PLAN_MAP)
@@ -36,11 +36,12 @@ export default function Checkout() {
     firstName: member?.name.split(' ')[0] ?? '',
     lastName: member?.name.split(' ').slice(1).join(' ') ?? '',
   }));
-  const [paymentType, setPaymentType] = useState<'pay_now' | 'pay_later'>('pay_now');
   const [useCash, setUseCash] = useState(false);
   const [arrival, setArrival] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const cashApplied = useCash && member ? Math.min(rewards.islandCash, 2000) : 0;
+  const cashApplied = useCash && session ? Math.min(rewards.islandCash, 2000) : 0;
 
   const quote = useMemo(() => {
     if (!resort || !villa || !plan) return null;
@@ -52,10 +53,10 @@ export default function Checkout() {
       checkOut: search.checkOut,
       adults: search.adults,
       children: search.children,
-      member: !!member,
+      member: !!session,
       islandCashApplied: cashApplied,
     });
-  }, [resort, villa, plan, search, member, cashApplied]);
+  }, [resort, villa, plan, search, session, cashApplied]);
 
   if (!resort || !villa || !plan || !quote) {
     return (
@@ -73,36 +74,48 @@ export default function Checkout() {
   const warning = seaplaneArrivalWarning(arrival, transfer);
   const refundable = quote.nights >= 5;
   const stampProgress = rewards.stamps;
+  const earnedCash = Math.round(quote.total * ISLAND_CASH_RATE);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (warning) return;
-    const id = `${Date.now()}`;
-    const total = quote.total;
-    const booking: Booking = {
-      id,
-      code: bookingCode(id + villa.id + search.checkIn),
-      resortId: resort.id,
-      villaId: villa.id,
-      mealPlan: plan,
-      checkIn: search.checkIn,
-      checkOut: search.checkOut,
-      adults: search.adults,
-      children: search.children,
-      rooms: search.rooms,
-      paymentType,
-      refundable,
-      traveler: { ...traveler, arrivalFlight: traveler.arrivalFlight || arrival },
-      quote,
-      status: 'confirmed',
-      createdAt: new Date().toISOString(),
-      islandCashUsed: cashApplied,
-      islandCashEarned: member && paymentType === 'pay_now' ? Math.round(total * 0.02) : 0,
-      stampsEarned: quote.nights,
-    };
-    addBooking(booking);
-    if (cashApplied) redeemIslandCash(cashApplied);
-    navigate(`/confirmation/${booking.code}`);
+    if (warning || submitting) return;
+    if (!session) {
+      openAuth('checkout');
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const id = crypto.randomUUID();
+      const booking: Booking = {
+        id,
+        code: bookingCode(id + villa.id + search.checkIn),
+        resortId: resort.id,
+        villaId: villa.id,
+        mealPlan: plan,
+        checkIn: search.checkIn,
+        checkOut: search.checkOut,
+        adults: search.adults,
+        children: search.children,
+        rooms: search.rooms,
+        paymentType: 'pay_at_property',
+        refundable,
+        traveler: { ...traveler, arrivalFlight: traveler.arrivalFlight || arrival },
+        quote,
+        status: 'confirmed',
+        createdAt: new Date().toISOString(),
+        islandCashUsed: cashApplied,
+        islandCashEarned: earnedCash,
+        stampsEarned: quote.nights,
+      };
+      await addBooking(booking);
+      if (cashApplied) await redeemIslandCash(cashApplied);
+      navigate(`/confirmation/${booking.code}`);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Booking failed — please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const field = 'mt-1 w-full rounded-xl border border-sand-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-lagoon-500 focus:ring-2 focus:ring-lagoon-300';
@@ -170,25 +183,21 @@ export default function Checkout() {
 
           <section className="rounded-3xl border border-sand-200 bg-white p-6">
             <h2 className="font-display text-xl font-semibold text-ink-950">Payment</h2>
-            <div className="mt-4 space-y-3">
-              {([
-                { id: 'pay_now', title: 'Pay now', note: 'Card charged today · earn 2% IslandCash immediately' },
-                { id: 'pay_later', title: 'Pay at the resort', note: 'Hold with card, settle on arrival · rewards post after stay' },
-              ] as const).map((opt) => (
-                <label
-                  key={opt.id}
-                  className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${paymentType === opt.id ? 'border-lagoon-500 bg-lagoon-100/40 ring-2 ring-lagoon-300' : 'border-sand-200 hover:border-lagoon-400'}`}
-                >
-                  <input type="radio" name="pay" checked={paymentType === opt.id} onChange={() => setPaymentType(opt.id)} className="mt-1 size-4 accent-lagoon-600" />
-                  <span>
-                    <span className="block font-bold text-ink-950">{opt.title}</span>
-                    <span className="block text-sm text-ink-500">{opt.note}</span>
-                  </span>
-                </label>
-              ))}
+            <div className="mt-4 flex items-start gap-3 rounded-2xl border border-lagoon-500 bg-lagoon-100/40 p-4 ring-2 ring-lagoon-300">
+              <svg className="mt-0.5 shrink-0 text-lagoon-600" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="3" y="6" width="18" height="13" rx="2" />
+                <path d="M3 10h18" />
+              </svg>
+              <span>
+                <span className="block font-bold text-ink-950">Pay at the resort</span>
+                <span className="block text-sm text-ink-500">
+                  Your card is only held for the booking — settle {money(quote.total)} at check-in. IslandCash and stamps
+                  post after check-out.
+                </span>
+              </span>
             </div>
 
-            {member && rewards.islandCash > 0 && (
+            {session && rewards.islandCash > 0 && (
               <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-gold-500 bg-gold-500/10 p-4">
                 <input type="checkbox" checked={useCash} onChange={(e) => setUseCash(e.target.checked)} className="mt-1 size-4 accent-gold-500" />
                 <span>
@@ -198,17 +207,35 @@ export default function Checkout() {
               </label>
             )}
 
-            <div className="mt-4 rounded-xl bg-sand-100 p-3 text-xs text-ink-700">
-              Demo checkout — no real card is collected. Submitting creates a local booking visible under Trips.
-            </div>
+            {!session && (
+              <div className="mt-4 rounded-2xl border border-sand-300 bg-sand-100 p-4">
+                <p className="text-sm font-semibold text-ink-950">Sign in to complete your booking</p>
+                <p className="mt-1 text-sm text-ink-700">
+                  Booking requires an account — your trips and rewards are tied to it. Unsaved form details stay put.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openAuth('checkout')}
+                  className="mt-3 w-full rounded-xl bg-ink-900 py-2.5 text-sm font-bold text-white hover:bg-lagoon-700"
+                >
+                  Sign in or create account
+                </button>
+              </div>
+            )}
           </section>
+
+          {submitError && (
+            <div role="alert" className="rounded-2xl border border-coral-500 bg-coral-500/10 p-4 text-sm font-semibold text-coral-600">
+              {submitError}
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={!!warning}
+            disabled={!!warning || submitting}
             className="w-full rounded-xl bg-coral-500 py-4 text-base font-bold text-white shadow-lg shadow-coral-500/30 transition hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-ink-300 disabled:shadow-none"
           >
-            {paymentType === 'pay_now' ? `Confirm & pay ${money(quote.total)}` : `Confirm — pay ${money(quote.total)} at resort`}
+            {submitting ? 'Confirming…' : !session ? 'Sign in to book' : `Confirm — pay ${money(quote.total)} at resort`}
           </button>
         </form>
 
@@ -231,6 +258,7 @@ export default function Checkout() {
               <dl className="mt-4 space-y-2 text-sm">
                 <Row label={`Villa × ${quote.nights} nights`} value={money(quote.roomSubtotal)} />
                 <Row label="Meal plan" value={money(quote.mealUplift)} />
+                {quote.longStayDiscount > 0 && <Row label="5th night free" value={`−${money(quote.longStayDiscount)}`} accent />}
                 {quote.memberDiscount > 0 && <Row label="Member −10%" value={`−${money(quote.memberDiscount)}`} accent />}
                 {cashApplied > 0 && <Row label="IslandCash applied" value={`−${money(cashApplied)}`} accent />}
                 <Row label="Service charge (10%)" value={money(quote.serviceCharge)} />
@@ -247,7 +275,7 @@ export default function Checkout() {
 
               <div className="mt-4 space-y-1.5 rounded-xl bg-lagoon-100/60 p-3 text-xs font-semibold text-lagoon-700">
                 <div>✓ {refundable ? 'Free cancellation until 48h before arrival' : 'Non-refundable rate'}</div>
-                <div>✓ Earn {member && paymentType === 'pay_now' ? money(Math.round(quote.total * 0.02)) : '$—'} IslandCash</div>
+                <div>✓ Earn {money(earnedCash)} IslandCash after check-out</div>
                 <div>
                   ✓ Stamp progress: {stampProgress % 10}/10 nights → $100 credit
                 </div>

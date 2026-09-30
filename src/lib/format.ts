@@ -29,8 +29,8 @@ export function today(): string {
 export function bookingCode(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const letters = 'ACDEFHJKLMNPRTVWXY';
-  const l1 = letters[h % letters.length];
-  const l2 = letters[(h >> 5) % letters.length];
+    const letters = 'ACDEFHJKLMNPRTVWXY';
+    const l1 = letters[h % letters.length];
+    const l2 = letters[(h >>> 5) % letters.length];
   return `AT${l1}${l2}-${String(h % 1_000_000).padStart(6, '0')}`;
 }

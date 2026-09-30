@@ -6,4 +6,12 @@ nohup.out
 vercel-login.log
 vercel-login.pid
 .reverse-engineering/
+.env
+.env.*
+!.env.example
+.vercel/
 .DS_Store
+
+.vercel
+.env*
+ca.pooler.pem

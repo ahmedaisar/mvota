@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import SearchStrip from '../components/SearchStrip';
 import ResortCard from '../components/ResortCard';
-import { RESORTS } from '../data/resorts';
-import { MEAL_PLANS } from '../data/resorts';
+import { RESORTS, MEAL_PLANS } from '../data/resorts';
+import { buildQuote, fromPrice } from '../lib/pricing';
+import { money } from '../lib/format';
 import { useApp } from '../store/AppContext';
 
 const valueProps = [
@@ -24,9 +25,33 @@ const valueProps = [
 ];
 
 export default function Home() {
-  const { member, search } = useApp();
+  const { member, session, search, openAuth } = useApp();
   const featured = RESORTS.filter((r) => r.promoted);
   const guests = search.adults + search.children;
+
+  const sampleResort = RESORTS.find((r) => r.slug === 'azure-shore-north-male')!;
+  const sampleVilla = sampleResort.villas.find((v) => v.name === 'Lagoon Water Villa')!;
+  const sampleQuote = buildQuote({
+    resort: sampleResort,
+    villa: sampleVilla,
+    mealPlan: 'AI',
+    checkIn: search.checkIn,
+    checkOut: search.checkOut,
+    adults: 2,
+    children: 0,
+    member: !!session,
+  });
+
+  const sampleRows: [string, string, boolean?][] = [
+    ['Villa (seasonal)', money(sampleQuote.roomSubtotal)],
+    ['Meal plan uplift', money(sampleQuote.mealUplift)],
+    ['5th night free', `−${money(sampleQuote.longStayDiscount)}`, sampleQuote.longStayDiscount > 0],
+    ['Member −10%', `−${money(sampleQuote.memberDiscount)}`, sampleQuote.memberDiscount > 0],
+    ['Service charge 10%', money(sampleQuote.serviceCharge)],
+    ['TGST 17%', money(sampleQuote.tgst)],
+    ['Green tax ×2 guests', money(sampleQuote.greenTax)],
+    ['Speedboat RT ×2', money(sampleQuote.transferTotal)],
+  ];
 
   return (
     <div>
@@ -92,8 +117,8 @@ export default function Home() {
           <div className="mt-8 max-w-5xl">
             <SearchStrip />
             <p className="mt-3 text-xs font-semibold text-ink-100/90">
-              Try: {guests} guest{guests > 1 ? 's' : ''} · {featured[0].name} from $
-              {Math.round(RESORTS[0].villas[0].basePrice * 7).toLocaleString()} — all taxes included
+              Try: {featured[0].name} from {money(fromPrice(featured[0], !!session, search.checkIn, search.checkOut, guests))} — all
+              taxes and transfer included
             </p>
           </div>
         </div>
@@ -165,19 +190,15 @@ export default function Home() {
             </div>
 
             <div className="rounded-2xl bg-ink-950 p-6 ring-1 ring-ink-700">
-              <h3 className="text-xl font-semibold">Sample quote: 7 nights, 2 adults</h3>
-              <p className="mt-1 text-sm text-ink-300">Azure Shore · Lagoon Water Villa · All Inclusive · speedboat</p>
+              <h3 className="text-xl font-semibold">
+                Live quote: {sampleQuote.nights} nights, 2 adults
+              </h3>
+              <p className="mt-1 text-sm text-ink-300">
+                Azure Shore · Lagoon Water Villa · All Inclusive · speedboat
+              </p>
               <table className="mt-4 w-full text-sm">
                 <tbody className="[&_td]:py-2 [&_td]:border-b [&_td]:border-ink-800">
-                  {[
-                    ['Villa (seasonal)', '$4,830'],
-                    ['Meal plan uplift', '$3,430'],
-                    ['Member −10%', '−$826'],
-                    ['Service charge 10%', '$743'],
-                    ['TGST 17%', '$1,363'],
-                    ['Green tax ×2 guests', '$168'],
-                    ['Speedboat RT ×2', '$440'],
-                  ].map(([k, v]) => (
+                  {sampleRows.filter(([, , show]) => show !== false).map(([k, v]) => (
                     <tr key={k}>
                       <td className="text-ink-300">{k}</td>
                       <td className="text-right font-semibold tabular-nums">{v}</td>
@@ -185,11 +206,15 @@ export default function Home() {
                   ))}
                   <tr>
                     <td className="pt-4 text-base font-bold">Total</td>
-                    <td className="pt-4 text-right text-xl font-bold text-lagoon-300 tabular-nums">$10,148</td>
+                    <td className="pt-4 text-right text-xl font-bold text-lagoon-300 tabular-nums">
+                      {money(sampleQuote.total)}
+                    </td>
                   </tr>
                 </tbody>
               </table>
-              <p className="mt-3 text-xs text-ink-500">Illustrative sample. Live quotes recompute instantly in search and checkout.</p>
+              <p className="mt-3 text-xs text-ink-500">
+                Priced by the same engine as search and checkout — it recomputes with your dates and guests.
+              </p>
             </div>
           </div>
         </div>
@@ -218,12 +243,15 @@ export default function Home() {
             <div>
               <h2 className="text-2xl font-semibold">Members save 10% — and earn IslandCash</h2>
               <p className="mt-1 text-sm text-lagoon-100">
-                2% back on stays, plus a $100 credit every 10 nights. Sign in takes ten seconds, no password.
+                2% back on stays, plus a $100 credit every 10 nights. Creating an account takes seconds.
               </p>
             </div>
-            <Link to="/trips" className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-lagoon-700 hover:bg-sand-100">
+            <button
+              onClick={() => openAuth('header')}
+              className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-lagoon-700 hover:bg-sand-100"
+            >
               Join free
-            </Link>
+            </button>
           </div>
         </section>
       )}

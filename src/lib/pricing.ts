@@ -55,7 +55,8 @@ export function buildQuote(opts: {
 
   const roomSubtotal = Math.round(villa.basePrice * season.multiplier * nights);
   const mealUplift = Math.round(MEAL_PLAN_MAP[mealPlan].ppn * guests * nights);
-  const gross = roomSubtotal + mealUplift;
+  const longStayDiscount = nights >= 5 ? Math.round(roomSubtotal / nights) : 0;
+  const gross = roomSubtotal + mealUplift - longStayDiscount;
   const memberDiscount = member && isMemberPriceEligible(member) ? Math.round(gross * MEMBER_DISCOUNT) : 0;
   const taxable = gross - memberDiscount;
   const serviceCharge = Math.round(taxable * SERVICE_CHARGE_RATE);
@@ -70,6 +71,7 @@ export function buildQuote(opts: {
     nights,
     roomSubtotal,
     mealUplift,
+    longStayDiscount,
     memberDiscount,
     serviceCharge,
     tgst,

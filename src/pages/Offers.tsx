@@ -28,7 +28,7 @@ const deals = [
 ];
 
 export default function Offers() {
-  const { member, search } = useApp();
+  const { member, search, openAuth } = useApp();
   const guests = search.adults + search.children;
   const picks = [...RESORTS]
     .sort((a, b) => a.villas[0].basePrice - b.villas[0].basePrice)
@@ -80,9 +80,12 @@ export default function Offers() {
           ))}
         </div>
         {!member && (
-          <Link to="/trips" className="mt-6 inline-block rounded-xl bg-coral-500 px-5 py-3 text-sm font-bold hover:bg-coral-600">
+          <button
+            onClick={() => openAuth('header')}
+            className="mt-6 rounded-xl bg-coral-500 px-5 py-3 text-sm font-bold hover:bg-coral-600"
+          >
             Sign in to unlock −10%
-          </Link>
+          </button>
         )}
       </section>
 

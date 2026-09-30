@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 import { RESORTS, ATOLL_MAP, TRANSFER_LABEL, MEAL_PLAN_MAP } from '../data/resorts';
@@ -9,10 +9,14 @@ import ResortCard from '../components/ResortCard';
 type Tab = 'upcoming' | 'past' | 'saved' | 'rewards';
 
 export default function Trips() {
-  const { member, bookings, cancelBooking, saved, rewards, postStayRewards, rewards: rw } = useApp();
+  const { session, member, bookings, cancelBooking, saved, rewards, refresh, dataLoading, openAuth } = useApp();
   const [params, setParams] = useSearchParams();
   const tab = (params.get('tab') as Tab) ?? 'upcoming';
   const [showAllStays, setShowAllStays] = useState(false);
+
+  useEffect(() => {
+    if (session) void refresh();
+  }, [session, refresh]);
 
   const setTab = (t: Tab) => {
     const next = new URLSearchParams(params);
@@ -30,12 +34,19 @@ export default function Trips() {
         </div>
         <h1 className="mt-5 font-display text-3xl font-semibold text-ink-950">Your trips live here</h1>
         <p className="mt-2 text-ink-500">
-          Sign in to see bookings, saved islands and IslandCash. Use the button in the header — it's a ten-second demo
-          sign-in.
+          Sign in to see bookings, saved islands and IslandCash — all synced to your account.
         </p>
-        <Link to="/search" className="mt-6 inline-block rounded-xl bg-ink-900 px-6 py-3 text-sm font-bold text-white hover:bg-lagoon-700">
-          Browse stays
-        </Link>
+        <button
+          onClick={() => openAuth('trips')}
+          className="mt-6 rounded-xl bg-ink-900 px-6 py-3 text-sm font-bold text-white hover:bg-lagoon-700"
+        >
+          Sign in or create account
+        </button>
+        <div className="mt-4">
+          <Link to="/search" className="text-sm font-bold text-lagoon-700 hover:underline">
+            Browse stays instead →
+          </Link>
+        </div>
       </div>
     );
   }
@@ -82,9 +93,11 @@ export default function Trips() {
       <div className="mt-6">
         {tab === 'upcoming' && (
           <div className="space-y-4">
-            {upcoming.length === 0 && <Empty text="No upcoming island trips. Your quote engine is waiting." />}
+            {dataLoading && bookings.length === 0 && <Empty text="Loading your bookings…" />}
+            {!dataLoading && upcoming.length === 0 && <Empty text="No upcoming island trips yet — your quote engine is waiting." />}
             {upcoming.map((b) => {
-              const resort = RESORTS.find((r) => r.id === b.resortId)!;
+              const resort = RESORTS.find((r) => r.id === b.resortId);
+              if (!resort) return null;
               return (
                 <BookingCard key={b.id} booking={b} resort={resort} onCancel={() => cancelBooking(b.id)} />
               );
@@ -96,21 +109,9 @@ export default function Trips() {
           <div className="space-y-4">
             {past.length === 0 && <Empty text="Nothing here yet — completed and cancelled stays will appear." />}
             {past.map((b) => {
-              const resort = RESORTS.find((r) => r.id === b.resortId)!;
-              const canComplete = b.status === 'confirmed' && b.checkOut < today;
-              return (
-                <div key={b.id}>
-                  <BookingCard booking={b} resort={resort} onCancel={() => cancelBooking(b.id)} />
-                  {canComplete && (
-                    <button
-                      onClick={() => postStayRewards(b)}
-                      className="-mt-3 ml-1 rounded-b-xl bg-gold-500 px-4 py-1.5 text-xs font-bold text-ink-950 hover:bg-gold-300"
-                    >
-                      Simulate stay completed → unlock {b.stampsEarned} stamps + {money(Math.round(b.quote.total * 0.02))} IslandCash
-                    </button>
-                  )}
-                </div>
-              );
+              const resort = RESORTS.find((r) => r.id === b.resortId);
+              if (!resort) return null;
+              return <BookingCard key={b.id} booking={b} resort={resort} onCancel={() => cancelBooking(b.id)} />;
             })}
           </div>
         )}
@@ -147,7 +148,7 @@ export default function Trips() {
               </div>
               <p className="mt-3 text-sm text-ink-700">
                 {10 - progress} more night{10 - progress === 1 ? '' : 's'} until a <strong>$100 credit</strong>. Collected{' '}
-                {rw.stamps} stamps total.
+                {rewards.stamps} stamps total.
               </p>
               <div className="mt-4 rounded-xl bg-lagoon-100 p-3 text-xs font-semibold text-lagoon-700">
                 Members also get −10% on every quote automatically.
@@ -218,7 +219,7 @@ function BookingCard({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-sand-300 pt-3">
         <div className="text-sm">
           <span className="font-bold text-ink-950">{money(booking.quote.total)}</span>
-          <span className="text-ink-500"> · {booking.paymentType === 'pay_now' ? 'paid' : 'pay at resort'}</span>
+          <span className="text-ink-500"> · {booking.paymentType === 'paid' ? 'paid' : 'pay at resort'}</span>
         </div>
         {!cancelled && booking.status === 'confirmed' && booking.refundable && (
           <button onClick={onCancel} className="rounded-lg border border-coral-500 px-3 py-1.5 text-xs font-bold text-coral-600 hover:bg-coral-500 hover:text-white">

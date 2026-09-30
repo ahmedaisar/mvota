@@ -36,8 +36,8 @@ export default function Confirmation() {
           </div>
           <h1 className="mt-4 font-display text-3xl font-semibold text-ink-950">You're island-bound</h1>
           <p className="mt-2 text-ink-700">
-            Confirmation <strong className="text-ink-950">{booking.code}</strong> — sent to{' '}
-            {booking.traveler.email || member?.email || 'your inbox'}.
+            Confirmation <strong className="text-ink-950">{booking.code}</strong> — booked under{' '}
+            {booking.traveler.email || member?.email || 'your account'}.
           </p>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -48,7 +48,7 @@ export default function Confirmation() {
             <Fact label="Meal plan" value={MEAL_PLAN_MAP[booking.mealPlan].name} />
             <Fact label="Transfer" value={resort ? `${TRANSFER_LABEL[transfer]} · ${resort.transferMinutes} min` : '—'} />
             <Fact label="Guests" value={`${booking.adults} adults, ${booking.children} children`} />
-            <Fact label="Payment" value={booking.paymentType === 'pay_now' ? `Paid ${money(booking.quote.total)}` : `Pay ${money(booking.quote.total)} at resort`} />
+            <Fact label="Payment" value={booking.paymentType === 'paid' ? `Paid ${money(booking.quote.total)}` : `Pay ${money(booking.quote.total)} at resort`} />
           </div>
 
           <div className="mt-6 rounded-2xl bg-sand-100 p-5">
@@ -66,10 +66,8 @@ export default function Confirmation() {
               <div className="rounded-lg bg-white p-3">
                 <div className="font-bold text-ink-950">Rewards</div>
                 <div className="text-xs text-ink-500">
-                  {booking.islandCashEarned > 0
-                    ? `${money(booking.islandCashEarned)} IslandCash earned · `
-                    : 'IslandCash posts after the stay · '}
-                  {booking.stampsEarned} stamp{booking.stampsEarned === 1 ? '' : 's'}
+                  {money(booking.islandCashEarned)} IslandCash pending until check-out · {booking.stampsEarned} stamp
+                  {booking.stampsEarned === 1 ? '' : 's'} credited after your stay
                 </div>
               </div>
             </div>

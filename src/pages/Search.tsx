@@ -123,7 +123,7 @@ export default function Search() {
 
           {results.length > 0 && (
             <div className="mt-6 rounded-2xl border border-dashed border-lagoon-400 bg-lagoon-100/50 p-5 text-sm text-ink-700">
-              <strong className="text-ink-950">Price transparency demo:</strong> every total above already includes
+                <strong className="text-ink-950">Price transparency:</strong> every total above already includes
               service charge (10%), TGST (17%), green tax ($6–$12/person/night) and the round-trip transfer. Signed-in
               members see the −10% discount baked in.
             </div>

@@ -9,9 +9,15 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "db:push": "prisma db push",
+    "db:init": "node scripts/db-init.mjs",
+    "db:setup": "prisma db push && node scripts/db-init.mjs",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@supabase/supabase-js": "^2.117.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.0"
@@ -26,6 +32,8 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.1.0",
+    "pg": "^8.23.0",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4.1.7",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.32.0",

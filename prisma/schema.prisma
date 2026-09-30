@@ -1,0 +1,68 @@
+// Supabase Postgres schema for the Atoll OTA.
+// Managed with: npm run db:push  (prisma db push)
+// RLS policies + auth signup trigger live in scripts/db-init.mjs (raw SQL via Prisma).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")    // shared transaction-mode pooler (6543)
+  directUrl = env("DIRECT_URL")      // session-mode pooler (5432) for migrations/db push
+}
+
+/// Created automatically by the auth signup trigger (scripts/db-init.mjs).
+model Profile {
+  id        String   @id @db.Uuid
+  fullName  String   @default("") @map("full_name")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("profiles")
+}
+
+/// Rewards balances; row created by the signup trigger.
+model Reward {
+  userId            String  @id @map("user_id") @db.Uuid
+  islandCash        Decimal @default(0) @map("island_cash") @db.Decimal(12, 2)
+  pendingIslandCash Decimal @default(0) @map("pending_island_cash") @db.Decimal(12, 2)
+  stamps            Int     @default(0)
+
+  @@map("rewards")
+}
+
+model Booking {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String   @unique
+  userId          String   @map("user_id") @db.Uuid
+  resortId        String   @map("resort_id")
+  villaId         String   @map("villa_id")
+  mealPlan        String   @map("meal_plan")
+  checkIn         DateTime @map("check_in") @db.Date
+  checkOut        DateTime @map("check_out") @db.Date
+  adults          Int
+  children        Int      @default(0)
+  rooms           Int      @default(1)
+  paymentType     String   @default("pay_at_property") @map("payment_type")
+  refundable      Boolean
+  traveler        Json
+  quote           Json
+  status          String   @default("confirmed")
+  islandCashUsed  Decimal  @default(0) @map("island_cash_used") @db.Decimal(12, 2)
+  islandCashEarned Decimal @default(0) @map("island_cash_earned") @db.Decimal(12, 2)
+  stampsEarned    Int      @default(0) @map("stamps_earned")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([userId, checkIn(sort: Desc)], map: "bookings_user_idx")
+  @@index([status], map: "bookings_status_idx")
+  @@map("bookings")
+}
+
+model SavedStay {
+  userId     String   @map("user_id") @db.Uuid
+  resortSlug String   @map("resort_slug")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@id([userId, resortSlug])
+  @@map("saved_stays")
+}

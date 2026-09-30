@@ -86,6 +86,8 @@ export interface PriceQuote {
   nights: number;
   roomSubtotal: number;
   mealUplift: number;
+  /** 5th-night-free discount on the room component (5+ night stays) */
+  longStayDiscount: number;
   memberDiscount: number;
   serviceCharge: number;
   tgst: number;
@@ -107,7 +109,7 @@ export interface Booking {
   adults: number;
   children: number;
   rooms: number;
-  paymentType: 'pay_now' | 'pay_later';
+  paymentType: 'pay_at_property' | 'paid';
   refundable: boolean;
   traveler: Traveler;
   quote: PriceQuote;

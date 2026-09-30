@@ -1,23 +1,70 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useApp } from '../store/AppContext';
+import { useApp, type AuthReason } from '../store/AppContext';
 
 const navLink = ({ isActive }: { isActive: boolean }) =>
   `text-sm font-semibold transition-colors ${isActive ? 'text-lagoon-600' : 'text-ink-700 hover:text-lagoon-600'}`;
 
-function SignInModal({ onClose }: { onClose: () => void }) {
-  const { signIn, rewards } = useApp();
+const input =
+  'mt-1 w-full rounded-xl border border-sand-300 bg-sand-50 px-3 py-2.5 font-normal outline-none focus:border-lagoon-500 focus:ring-2 focus:ring-lagoon-300';
+
+function AuthModal({ reason, onClose }: { reason: AuthReason; onClose: () => void }) {
+  const { signIn, register } = useApp();
+  const [mode, setMode] = useState<'signin' | 'register'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
+  const afterSuccess = () => {
+    onClose();
+    if (reason === 'trips') navigate('/trips');
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      if (mode === 'signin') {
+        const err = await signIn(email.trim(), password);
+        if (err) setError(err);
+        else afterSuccess();
+      } else {
+        if (!name.trim()) {
+          setError('Enter your full name.');
+          return;
+        }
+        const res = await register(name.trim(), email.trim(), password);
+        if (res.error) setError(res.error);
+        else if (res.needsConfirm) {
+          setNotice(`Almost there — we sent a confirmation link to ${res.email}. Confirm your email, then sign in.`);
+          setMode('signin');
+        } else afterSuccess();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/60 p-4" role="dialog" aria-modal="true" aria-label="Sign in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/60 p-4" role="dialog" aria-modal="true" aria-label="Account">
       <div className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl animate-rise">
         <div className="mb-1 flex items-start justify-between">
           <div>
-            <h2 className="font-display text-2xl font-semibold text-ink-950">Sign in to Atoll</h2>
-            <p className="mt-1 text-sm text-ink-500">Unlock member prices (10% off), IslandCash rewards and your trips.</p>
+            <h2 className="font-display text-2xl font-semibold text-ink-950">
+              {mode === 'signin' ? 'Sign in to Atoll' : 'Create your account'}
+            </h2>
+            <p className="mt-1 text-sm text-ink-500">
+              {mode === 'signin'
+                ? 'Member prices, IslandCash rewards and your trips.'
+                : 'Free — unlocks −10% member prices and 2% IslandCash on every stay.'}
+            </p>
           </div>
           <button onClick={onClose} aria-label="Close" className="rounded-full p-1 text-ink-500 hover:bg-sand-100">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -25,26 +72,50 @@ function SignInModal({ onClose }: { onClose: () => void }) {
             </svg>
           </button>
         </div>
-        <form
-          className="mt-5 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!name.trim() || !email.trim()) return;
-            signIn({ name: name.trim(), email: email.trim() });
-            onClose();
-            navigate('/trips');
-          }}
-        >
-          <label className="block text-sm font-semibold text-ink-700">
-            Full name
-            <input
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-sand-300 bg-sand-50 px-3 py-2.5 font-normal outline-none focus:border-lagoon-500 focus:ring-2 focus:ring-lagoon-300"
-              placeholder="Aisha Rahman"
-            />
-          </label>
+
+        <div className="mt-4 flex gap-1 rounded-xl bg-sand-100 p-1">
+          {(['signin', 'register'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => {
+                setMode(m);
+                setError(null);
+                setNotice(null);
+              }}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold transition ${
+                mode === m ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500 hover:text-ink-700'
+              }`}
+            >
+              {m === 'signin' ? 'Sign in' : 'Create account'}
+            </button>
+          ))}
+        </div>
+
+        {notice && (
+          <div className="mt-4 rounded-xl border border-lagoon-500 bg-lagoon-100/60 p-3 text-sm font-semibold text-lagoon-800">
+            {notice}
+          </div>
+        )}
+        {error && (
+          <div role="alert" className="mt-4 rounded-xl border border-coral-500 bg-coral-500/10 p-3 text-sm font-semibold text-coral-600">
+            {error}
+          </div>
+        )}
+
+        <form className="mt-4 space-y-3" onSubmit={submit}>
+          {mode === 'register' && (
+            <label className="block text-sm font-semibold text-ink-700">
+              Full name
+              <input
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={input}
+                placeholder="Aisha Rahman"
+                autoComplete="name"
+              />
+            </label>
+          )}
           <label className="block text-sm font-semibold text-ink-700">
             Email
             <input
@@ -52,42 +123,62 @@ function SignInModal({ onClose }: { onClose: () => void }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-sand-300 bg-sand-50 px-3 py-2.5 font-normal outline-none focus:border-lagoon-500 focus:ring-2 focus:ring-lagoon-300"
+              className={input}
               placeholder="you@example.com"
+              autoComplete="email"
             />
           </label>
-          <button type="submit" className="w-full rounded-xl bg-ink-900 py-3 font-semibold text-white transition hover:bg-lagoon-700">
-            Continue
+          <label className="block text-sm font-semibold text-ink-700">
+            Password
+            <input
+              required
+              type="password"
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={input}
+              placeholder="At least 6 characters"
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={busy}
+            className="w-full rounded-xl bg-ink-900 py-3 font-semibold text-white transition hover:bg-lagoon-700 disabled:opacity-60"
+          >
+            {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account'}
           </button>
         </form>
+
         <div className="mt-4 rounded-xl bg-sand-100 p-3 text-xs text-ink-700">
-          Demo sign-in — no password. First stay earns 2% IslandCash; every {10} nights stamps unlock $100. Your balance:{' '}
-          <strong>${rewards.islandCash}</strong>.
+          Signed-in members get −10% on every quote. IslandCash (2% back) posts after each stay; every 10 nights stamps
+          unlock a $100 credit.
         </div>
-        <button
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-sand-300 py-2.5 text-sm font-semibold text-ink-700 hover:bg-sand-50"
-          onClick={() => {
-            signIn({ name: 'Google Guest', email: 'guest@gmail.com' });
-            onClose();
-            navigate('/trips');
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.6z" />
-            <path fill="#34A853" d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.3 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v3A11.5 11.5 0 0 0 12 24z" />
-            <path fill="#FBBC05" d="M5.6 14.7a6.9 6.9 0 0 1 0-4.4v-3H1.8a11.5 11.5 0 0 0 0 10.4l3.8-3z" />
-            <path fill="#EA4335" d="M12 4.8c1.7 0 3.2.6 4.4 1.7l3.3-3.3A11.5 11.5 0 0 0 1.8 7.3l3.8 3c.9-2.8 3.4-4.8 6.4-4.8z" />
-          </svg>
-          Continue with Google
-        </button>
+        {!notice && (
+          <p className="mt-3 text-center text-xs text-ink-500">
+            {mode === 'signin' ? 'New here? ' : 'Already have an account? '}
+            <button
+              className="font-bold text-lagoon-700 hover:underline"
+              onClick={() => {
+                setMode(mode === 'signin' ? 'register' : 'signin');
+                setError(null);
+                setNotice(null);
+              }}
+            >
+              {mode === 'signin' ? 'Create a free account' : 'Sign in'}
+            </button>
+          </p>
+        )}
+        {reason === 'save' && (
+          <p className="mt-1 text-center text-xs text-ink-500">Sign in to save islands to your list.</p>
+        )}
       </div>
     </div>
   );
 }
 
 export default function Layout() {
-  const { member, signOut, rewards, saved, bookings } = useApp();
-  const [authOpen, setAuthOpen] = useState(false);
+  const { member, signOut, rewards, saved, bookings, authModal, openAuth, closeAuth } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -126,8 +217,8 @@ export default function Layout() {
                   {member.name.split(' ')[0]} · <span className="text-gold-500">${rewards.islandCash}</span>
                 </span>
                 <button
-                  onClick={() => {
-                    signOut();
+                  onClick={async () => {
+                    await signOut();
                     navigate('/');
                   }}
                   className="rounded-full border border-sand-300 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-sand-50"
@@ -137,7 +228,7 @@ export default function Layout() {
               </div>
             ) : (
               <button
-                onClick={() => setAuthOpen(true)}
+                onClick={() => openAuth('header')}
                 className="rounded-full bg-ink-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-lagoon-700"
               >
                 Sign in
@@ -208,12 +299,12 @@ export default function Layout() {
           ))}
         </div>
         <div className="border-t border-ink-800 px-4 py-5 text-center text-xs text-ink-500">
-          Demo project reconstructed from the hotels.com teardown (see REVERSE_ENGINEERING_REPORT.md). Not affiliated with
-          Hotels.com, Expedia Group or any listed resort. Prices are illustrative.
+          Reconstructed for research from a hotels.com teardown (see REVERSE_ENGINEERING_REPORT.md). Not affiliated with
+          Hotels.com, Expedia Group or any listed resort.
         </div>
       </footer>
 
-      {authOpen && <SignInModal onClose={() => setAuthOpen(false)} />}
+      {authModal.open && <AuthModal reason={authModal.reason} onClose={closeAuth} />}
     </div>
   );
 }
