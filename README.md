@@ -107,7 +107,7 @@ The repo is a zero-config Vite SPA:
 4. Required env vars (production + preview): `NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the rest from `.env.example` for tooling). Without them the
    app renders a configuration notice instead of running against fake data.
-5. No `vercel.json` required; client-side routing works via Vercel's SPA fallback.
+5. [`vercel.json`](./vercel.json) provides the SPA rewrite so deep links (`/trips`, `/resort/…`) work.
 
 ## Notes
 
